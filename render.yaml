@@ -1,0 +1,27 @@
+# Blueprint para desplegar la aplicación en Render.com
+#
+# Documentación: https://render.com/docs/blueprint-spec
+#
+services:
+  - type: web
+    name: nowgoal-scraper-app
+    env: python
+    plan: free # Importante: usa el plan gratuito
+    region: frankfurt # Puedes elegir la región más cercana, ej: oregon
+    
+    # Comandos de construcción y arranque
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn --chdir src app:app"
+
+    # Variables de entorno (si fueran necesarias)
+    # envVars:
+    #   - key: PYTHON_VERSION
+    #     value: 3.11.5 # Especifica una versión de Python si es necesario
+
+    # Configuración de Health Check para que Render sepa si la app está viva
+    healthCheck:
+      path: /proximos
+      initialDelaySeconds: 120 # Dar tiempo extra para el primer arranque
+    
+    # Configuración de auto-despliegue al hacer push a la rama 'main'
+    autoDeploy: true
