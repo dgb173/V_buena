@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: python-flask-app
+    name: nowgoal-app
     plan: free
     env: docker
     dockerfilePath: Dockerfile
