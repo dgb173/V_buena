@@ -2,10 +2,10 @@ services:
   - type: web
     name: nowgoal-app
     runtime: python
-    pythonVersion: "3.11.9"
+    pythonVersion: "3.10"
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn --chdir src app:app"
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11.9"
+        value: "3.10"
