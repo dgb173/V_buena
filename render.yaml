@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: descarga-todo
-    env: python
-    buildCommand: |
-      pip install -r requirements.txt
-      py scripts/run_scraper.py
+    name: nowgoal-app
+    runtime: python
+    pythonVersion: "3.11"
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn --chdir src app:app"
     envVars:
       - key: PYTHON_VERSION
