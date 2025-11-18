@@ -1109,9 +1109,6 @@ def start_analysis_background():
 
     return jsonify({'status': 'success', 'message': f'Análisis iniciado para el partido {match_id}'})
 
-
-
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) # debug=True es útil para desarrollar
 

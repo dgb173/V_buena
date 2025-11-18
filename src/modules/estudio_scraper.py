@@ -750,15 +750,6 @@ def analizar_partido_completo(match_id: str):
     h2h_stadium_stats = get_stats_rows(h2h_data.get('match1_id'))
     h2h_general_stats = get_stats_rows(h2h_data.get('match6_id'))
 
-    # --- Nueva búsqueda de partidos por handicap exacto ---
-    target_handicap = main_match_odds_data.get('ah_linea_raw')
-    partidos_handicap_local = []
-    partidos_handicap_visitante = []
-    if target_handicap and target_handicap != '-':
-        partidos_handicap_local = buscar_partidos_mismo_handicap(soup_completo, home_name, target_handicap, is_home_table=True)
-        partidos_handicap_visitante = buscar_partidos_mismo_handicap(soup_completo, away_name, target_handicap, is_home_table=False)
-    # --- Fin de la nueva búsqueda ---
-
     results = {
         "match_id": main_match_id,
         "home_name": home_name,
@@ -781,71 +772,8 @@ def analizar_partido_completo(match_id: str):
         "comp_V_vs_UL_H": {"details": comp_V_vs_UL_H, "stats": comp_V_vs_UL_H_stats},
         "h2h_stadium": {"details": h2h_data, "stats": h2h_stadium_stats},
         "h2h_general": {"details": h2h_data, "stats": h2h_general_stats},
-        "partidos_handicap_local": partidos_handicap_local,
-        "partidos_handicap_visitante": partidos_handicap_visitante,
         "execution_time_seconds": round(time.time() - start_time, 2),
     }
 
     _set_cached_analysis(main_match_id, results)
     return copy.deepcopy(results)
-
-
-def buscar_partidos_mismo_handicap(soup, team_name, target_handicap_str, is_home_table):
-    """
-    Busca en el historial de un equipo los partidos que coinciden con un handicap exacto
-    y una condición de localía.
-    """
-    partidos_encontrados = []
-    if not soup:
-        return partidos_encontrados
-
-    table_id = "table_v1" if is_home_table else "table_v2"
-    table = soup.find("table", id=table_id)
-    if not table:
-        return partidos_encontrados
-
-    target_handicap_norm = format_ah_as_decimal_string_of(target_handicap_str)
-
-    for row in table.find_all("tr", id=re.compile(rf"tr{table_id[-1]}_\d+")):
-        try:
-            cells = row.find_all('td')
-            if len(cells) < 12: continue
-
-            home_team_name_row = (cells[2].find('a') or cells[2]).get_text(strip=True)
-            away_team_name_row = (cells[4].find('a') or cells[4]).get_text(strip=True)
-
-            # Verificar localía
-            is_team_playing_home = team_name.lower() in home_team_name_row.lower()
-            
-            if (is_home_table and not is_team_playing_home) or \
-               (not is_home_table and is_team_playing_home):
-                continue
-
-            # Verificar handicap
-            handicap_cell = cells[11]
-            handicap_raw = (handicap_cell.get('data-o') or handicap_cell.text).strip()
-            handicap_norm = format_ah_as_decimal_string_of(handicap_raw)
-
-            if handicap_norm == target_handicap_norm:
-                date_span = cells[1].find('span', attrs={'name': 'timeData'})
-                date_txt = date_span.get_text(strip=True) if date_span else 'N/A'
-                
-                score_cell = cells[3]
-                score_span = score_cell.find('span', class_=lambda c: isinstance(c, str) and 'score' in c)
-                score = (score_span or score_cell).get_text(strip=True)
-
-                partidos_encontrados.append({
-                    "date": date_txt,
-                    "home_team": home_team_name_row,
-                    "away_team": away_team_name_row,
-                    "score": score,
-                    "handicap": handicap_norm,
-                })
-        except Exception:
-            continue
-            
-    return partidos_encontrados
-
-
-
-
