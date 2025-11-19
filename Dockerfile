@@ -21,4 +21,4 @@ EXPOSE 10000
 
 # Comando para iniciar la aplicación
 # Render proporciona la variable de entorno $PORT, Gunicorn la usará.
-CMD ["gunicorn", "--chdir", "src", "--bind", "0.0.0.0:$PORT", "app:app"]
+CMD gunicorn --chdir src --bind "0.0.0.0:$PORT" app:app
