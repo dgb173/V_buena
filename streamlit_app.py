@@ -3,24 +3,40 @@ Streamlit viewer for scraped match data.
 
 The app reads a `data.json` file (either uploaded by the user or already
 present in the repo) and renders upcoming/finished matches with basic
-filters. No Playwright or Selenium is used here so it can run safely on
-Render's Streamlit runtime.
+filters. It also has an optional light scrape (requests-first, Playwright
+fallback) to refrescar las listas si el entorno lo permite.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import sys
 
 import pandas as pd
 import streamlit as st
+
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR / "src"))
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from scripts.scraping_logic import (
+    get_main_page_finished_matches_async,
+    get_main_page_matches_async,
+)
+from modules.estudio_scraper import analizar_partido_completo
 
 
 DEFAULT_DATA_PATHS = [
     Path("data.json"),
     Path("src/data.json"),
+]
+PREVIEW_CACHE_DIRS = [
+    Path("src/static/cached_previews"),
+    Path("static/cached_previews"),
 ]
 
 
@@ -91,9 +107,94 @@ def load_dataset(upload_file: Optional[bytes]) -> Tuple[Dict[str, List[Dict[str,
     return {"upcoming_matches": upcoming, "finished_matches": finished}, source
 
 
+def _scrape_live(limit_upcoming: int = 30, limit_finished: int = 30) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Best-effort scraping using the lightweight logic (requests first, Playwright fallback).
+    If Playwright browsers are not available in the environment, it will still return what
+    requests can fetch.
+    """
+    try:
+        upcoming = asyncio.run(get_main_page_matches_async(limit=limit_upcoming))
+        finished = asyncio.run(get_main_page_finished_matches_async(limit=limit_finished))
+        return {
+            "upcoming_matches": [_normalize_match(m) for m in upcoming if isinstance(m, dict)],
+            "finished_matches": [_normalize_match(m) for m in finished if isinstance(m, dict)],
+        }
+    except Exception as exc:
+        st.error(f"No se pudo scrapear en vivo: {exc}")
+        return {"upcoming_matches": [], "finished_matches": []}
+
+
 def _build_filter_options(matches: List[Dict[str, Any]], field: str) -> List[str]:
     values = sorted({str(m.get(field)) for m in matches if m.get(field) not in (None, "", "N/A")})
     return ["(Todos)"] + values
+
+
+def _load_cached_preview(match_id: str) -> Optional[Dict[str, Any]]:
+    if not match_id:
+        return None
+    for base in PREVIEW_CACHE_DIRS:
+        path = base / f"{match_id}.json"
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+    return None
+
+
+def _render_preview(data: Dict[str, Any]) -> None:
+    st.subheader("Analisis completo (cache)")
+    if not data:
+        st.info("No hay cache de analisis para este partido. Sube un JSON o generalo antes en tu entorno.")
+        return
+
+    meta_cols = st.columns(3)
+    meta_cols[0].metric("Local", data.get("home_team", "-"))
+    meta_cols[1].metric("Visitante", data.get("away_team", "-"))
+    meta_cols[2].metric("Marcador", data.get("final_score") or data.get("score") or "-")
+
+    if data.get("match_time") or data.get("match_date"):
+        st.caption(f"Fecha: {data.get('match_date', '-')}, Hora: {data.get('match_time', '-')}")
+
+    if data.get("simplified_html"):
+        st.markdown("Vista simplificada", help="Generada por el analisis original")
+        st.components.v1.html(data["simplified_html"], height=600, scrolling=True)
+    else:
+        st.markdown("Datos (JSON)")
+        st.json(data)
+
+
+def _render_live_analysis(match_id: str) -> None:
+    if not match_id:
+        st.info("Introduce un ID de partido para analizar en vivo.")
+        return
+    with st.spinner("Analizando en vivo (requiere navegador/Playwright/driver) ..."):
+        try:
+            data = analizar_partido_completo(match_id)
+        except Exception as exc:
+            st.error(f"No se pudo analizar el partido {match_id}: {exc}")
+            return
+
+    if not isinstance(data, dict):
+        st.error("El analisis no devolvio datos validos.")
+        return
+    if data.get("error"):
+        st.error(f"Error del analisis: {data.get('error')}")
+        return
+
+    st.success(f"Analisis completado para ID {match_id}")
+    header = st.columns(3)
+    header[0].metric("Local", data.get("home_name", "-"))
+    header[1].metric("Visitante", data.get("away_name", "-"))
+    header[2].metric("Marcador", data.get("final_score") or data.get("score") or "-")
+
+    if data.get("market_analysis_html"):
+        st.markdown("Vista de mercado")
+        st.components.v1.html(data["market_analysis_html"], height=500, scrolling=True)
+
+    st.markdown("Datos completos")
+    st.json(data)
 
 
 def _filter_matches(
@@ -156,6 +257,15 @@ def main() -> None:
         st.header("Fuente de datos")
         upload = st.file_uploader("Sube tu data.json", type=["json"])
         dataset, source_label = load_dataset(upload.read() if upload else None)
+        # Scrape ligero (requests primero, Playwright solo si existe)
+        if st.button("Scrapear listas (ligero)", use_container_width=True, help="Usa requests y si puede Playwright para refrescar las listas"):
+            dataset = _scrape_live(limit_upcoming=40, limit_finished=40)
+            source_label = "Scrape en vivo (ligero)"
+            st.session_state["live_dataset"] = dataset
+        elif "live_dataset" in st.session_state:
+            dataset = st.session_state["live_dataset"]
+            source_label = "Scrape en vivo (ligero)"
+
         st.write(f"Fuente: {source_label}")
 
         st.header("Filtros")
@@ -171,6 +281,13 @@ def main() -> None:
         goal_line = st.selectbox("Linea de goles", goal_opts, index=0)
 
         st.checkbox("Solo partidos futuros", value=True, key="only_future")
+
+        st.header("Analisis por ID (cache)")
+        manual_match_id = st.text_input("ID manual", value="", key="manual_match_id_input")
+        preview_upload = st.file_uploader("Sube preview JSON (opcional)", type=["json"], key="preview_uploader")
+        st.header("Analisis en vivo (requiere navegador)")
+        live_match_id = st.text_input("ID a analizar en vivo", value="", key="live_match_id_input")
+        run_live = st.button("Analizar en vivo", use_container_width=True, help="Usa Selenium/Playwright segun modules.estudio_scraper")
 
     upcoming_filtered = _filter_matches(
         dataset["upcoming_matches"], search, handicap, goal_line, st.session_state.get("only_future", True)
@@ -206,6 +323,44 @@ def main() -> None:
             mime="text/csv",
             key="download_filtered",
         )
+
+    # Panel de estudio basado en cache existente
+    st.divider()
+    st.header("Estudio del partido (usa cache existente)")
+    combined = upcoming_filtered + finished_filtered
+    options = [f"{m['id']} - {m['home_team']} vs {m['away_team']}" for m in combined]
+    match_lookup = {opt: m["id"] for opt, m in zip(options, combined)}
+
+    selected = st.selectbox("Selecciona un partido", options, disabled=not options, placeholder="Elegir de la lista")
+    selected_id = match_lookup.get(selected) if selected else None
+    manual_id = st.session_state.get("manual_match_id_input", "").strip()
+    target_id = selected_id or manual_id
+
+    # Prefer uploaded preview JSON when provided
+    preview_data = None
+    if preview_upload:
+        try:
+            preview_data = json.loads(preview_upload.read())
+            if not target_id and isinstance(preview_data, dict):
+                target_id = str(preview_data.get("match_id") or preview_data.get("id") or "")
+        except Exception:
+            st.warning("No se pudo leer el preview subido.")
+
+    if not preview_data and target_id:
+        preview_data = _load_cached_preview(target_id)
+
+    if not target_id and not preview_data:
+        st.info("Selecciona un partido o ingresa un ID en la barra lateral.")
+    else:
+        _render_preview(preview_data)
+
+    if run_live:
+        st.divider()
+        st.header("Analisis en vivo")
+        if live_match_id.strip():
+            _render_live_analysis(live_match_id.strip())
+        else:
+            st.warning("Introduce un ID para analizar en vivo.")
 
 
 if __name__ == "__main__":
