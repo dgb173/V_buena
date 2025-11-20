@@ -17,8 +17,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service as ChromeService
 
 # --- CONFIGURACIÓN GLOBAL ---
 BASE_URL_OF = "https://live20.nowgoal25.com"
@@ -681,7 +679,7 @@ def _get_or_create_selenium_driver():
     with _driver_instance_lock:
         if _driver_instance is None:
             try:
-                _driver_instance = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=_build_selenium_options())
+                _driver_instance = webdriver.Chrome(options=_build_selenium_options())
             except WebDriverException as exc:
                 print(f"Error inicializando Selenium driver: {exc}")
                 _driver_instance = None
