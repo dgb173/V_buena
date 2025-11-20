@@ -1,6 +1,13 @@
 # Usar una imagen base de Python
 FROM python:3.11-slim
 
+# Instalar dependencias del sistema necesarias para Chromium y ChromeDriver
+RUN apt-get update && \
+    apt-get install -y chromium chromium-driver fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV CHROME_BINARY=/usr/bin/chromium
+
 # Establecer el directorio de trabajo en el contenedor
 WORKDIR /app
 

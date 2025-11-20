@@ -8,6 +8,7 @@ import math
 import sys
 import traceback
 import threading
+import os
 from contextlib import contextmanager
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -662,6 +663,14 @@ def _build_selenium_options():
     options.add_argument("--log-level=3")
     options.add_argument("--blink-settings=imagesEnabled=false")
     options.add_argument(f"user-agent={REQUEST_HEADERS['User-Agent']}")
+    chrome_binary = os.environ.get("CHROME_BINARY")
+    if not chrome_binary:
+        for candidate in ("/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"):
+            if os.path.exists(candidate):
+                chrome_binary = candidate
+                break
+    if chrome_binary and os.path.exists(chrome_binary):
+        options.binary_location = chrome_binary
     return options
 
 
