@@ -7,7 +7,7 @@ WORKDIR /app
 # Copiar el archivo de dependencias
 COPY requirements.txt .
 
-# Instalar las dependencias de Python
+# Instalar las dependencias de Python (comentario para invalidar caché)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Instalar los navegadores para Playwright
