@@ -8,7 +8,7 @@ services:
     startCommand: streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10
+        value: 3.10.13
       - key: PYTHONPATH
         value: .
       - key: STREAMLIT_SERVER_HEADLESS

@@ -20,7 +20,7 @@ Luego abre `http://localhost:8501`.
 - Tipo de servicio: Web Service.
 - Build command: `pip install -r requirements.txt`
 - Start command: `streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port $PORT`
-- Entorno recomendado: Python 3.10+.
+- Entorno recomendado: Python 3.10.13.
 - Si no subes `data.json` en el repo, usa el uploader de la barra lateral para cargarlo en runtime.
 - Alternativa: usa `render.yaml` para crear el servicio directamente desde Render (autollenara comandos y variables).
 
