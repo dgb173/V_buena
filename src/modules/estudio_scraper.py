@@ -5,10 +5,7 @@ import copy
 import requests
 import re
 import math
-import sys
-import traceback
 import threading
-import os
 from contextlib import contextmanager
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -22,7 +19,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
 # --- CONFIGURACIÓN GLOBAL ---
-BASE_URL_OF = "https://live20.nowgoal25.com"
+BASE_URL_OF = "https://live18.nowgoal25.com"
 SELENIUM_TIMEOUT_SECONDS_OF = 10
 PLACEHOLDER_NODATA = "*(No disponible)*"
 REQUEST_TIMEOUT_SECONDS = 10
@@ -663,14 +660,6 @@ def _build_selenium_options():
     options.add_argument("--log-level=3")
     options.add_argument("--blink-settings=imagesEnabled=false")
     options.add_argument(f"user-agent={REQUEST_HEADERS['User-Agent']}")
-    chrome_binary = os.environ.get("CHROME_BINARY")
-    if not chrome_binary:
-        for candidate in ("/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"):
-            if os.path.exists(candidate):
-                chrome_binary = candidate
-                break
-    if chrome_binary and os.path.exists(chrome_binary):
-        options.binary_location = chrome_binary
     return options
 
 
@@ -712,29 +701,20 @@ def managed_selenium_driver():
 
 def analizar_partido_completo(match_id: str):
     main_match_id = "".join(filter(str.isdigit, str(match_id)))
-    print(f"DEBUG: Iniciando análisis para ID: {main_match_id}", file=sys.stderr)
     if not main_match_id:
         return {"error": "ID de partido inválido."}
 
     cached_payload = _get_cached_analysis(main_match_id)
     if cached_payload:
-        print(f"DEBUG: Devolviendo resultado cacheado para ID: {main_match_id}", file=sys.stderr)
         return cached_payload
 
     start_time = time.time()
     try:
         with managed_selenium_driver() as driver:
             if not driver:
-                print("DEBUG: El driver de Selenium NO se pudo inicializar.", file=sys.stderr)
                 return {"error": "No se pudo inicializar el WebDriver."}
-            print("DEBUG: Driver de Selenium obtenido con éxito.", file=sys.stderr)
-            
             soup_completo = _load_main_match_soup(driver, main_match_id)
-            print("DEBUG: Página principal cargada y procesada con BeautifulSoup.", file=sys.stderr)
-
             home_id, away_id, league_id, home_name, away_name, league_name = get_team_league_info_from_script_of(soup_completo)
-            print(f"DEBUG: Info extraída: Local={home_name}, Visitante={away_name}", file=sys.stderr)
-
             home_standings = extract_standings_data_from_h2h_page_of(soup_completo, home_name)
             away_standings = extract_standings_data_from_h2h_page_of(soup_completo, away_name)
             home_ou_stats = extract_over_under_stats_from_div_of(soup_completo, 'home')
@@ -748,16 +728,10 @@ def analizar_partido_completo(match_id: str):
             comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False)
             main_match_odds_data = extract_bet365_initial_odds_of(soup_completo)
             final_score, _ = extract_final_score_of(soup_completo)
-            
-            print("DEBUG: Realizando segunda carga con Selenium para H2H de rivales...", file=sys.stderr)
             details_h2h_col3 = get_h2h_details_for_original_logic_of(
                 driver, key_match_id_rival_a, rival_a_id, rival_b_id, rival_a_name, rival_b_name
             )
-            print("DEBUG: Segunda carga H2H completada.", file=sys.stderr)
-
     except Exception as exc:
-        print(f"FATAL: Ocurrió un error inesperado durante el análisis para ID: {main_match_id}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
         return {"error": f"Error durante el análisis: {exc}"}
 
     market_analysis_html = generar_analisis_completo_mercado(main_match_odds_data, h2h_data, home_name, away_name)
