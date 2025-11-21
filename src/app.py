@@ -623,75 +623,62 @@ async def _fetch_sidebar_lists(handicap_filter=None, goal_line_filter=None):
     )
 
 
-def _render_matches_dashboard(page_mode='upcoming', page_title='Partidos'):
-    handicap_filter = request.args.get('handicap')
-    goal_line_filter = request.args.get('ou')
-    error_msg = None
-    try:
-        upcoming_matches, finished_matches = asyncio.run(
-            _fetch_sidebar_lists(handicap_filter, goal_line_filter)
+@app.route('/', defaults={'match_id': None})
+@app.route('/estudio/<string:match_id>')
+def index(match_id):
+    """
+    Vista principal del estudio con barra lateral integrada.
+    Esta es ahora la ruta principal de la aplicación.
+    """
+    print(f"Recibida petición para el estudio del partido ID: {match_id}")
+
+    dataset = load_data_from_file()
+    # Limita la cantidad de partidos para que la carga inicial no sea tan pesada
+    upcoming_matches = (dataset.get('upcoming_matches') or [])[:50]
+    finished_matches = (dataset.get('finished_matches') or [])[:50]
+
+    # El ID del partido puede venir de la URL o de un parámetro de query
+    requested_match_id = match_id or request.args.get('match_id')
+    
+    # Si no se solicita ningún partido, selecciona el primero de la lista de próximos partidos
+    target_match_id = requested_match_id or _select_default_match_id(upcoming_matches, finished_matches)
+
+    if not target_match_id:
+        # Si no hay absolutamente ningún partido, muestra la página sin datos de análisis
+        return render_template(
+            'index.html',
+            data=None, # No hay datos de partido
+            format_ah=format_ah_as_decimal_string_of,
+            upcoming_matches=upcoming_matches,
+            finished_matches=finished_matches,
+            selected_match_id=None
         )
-    except Exception as exc:
-        print(f"ERROR al cargar datos para el dashboard: {exc}")
-        upcoming_matches, finished_matches = [], []
-        error_msg = f"No se pudieron cargar los partidos: {exc}"
 
-    handicap_options = _build_handicap_options_from_lists([upcoming_matches, finished_matches])
-    goal_line_options = _build_goal_line_options_from_lists([upcoming_matches, finished_matches])
-    active_matches = finished_matches if page_mode == 'finished' else upcoming_matches
+    datos_partido = analizar_partido_completo(target_match_id)
 
+    if not datos_partido or "error" in datos_partido:
+        error_message = (datos_partido or {}).get('error', 'Error desconocido al analizar el partido.')
+        print(f"Error al obtener datos para {target_match_id}: {error_message}")
+        # En lugar de abortar, renderiza la página con un error claro
+        return render_template(
+            'index.html',
+            data=None,
+            format_ah=format_ah_as_decimal_string_of,
+            upcoming_matches=upcoming_matches,
+            finished_matches=finished_matches,
+            selected_match_id=target_match_id
+        )
+
+    datos_partido['match_id'] = target_match_id
+    print(f"Datos obtenidos para {datos_partido.get('home_name', 'Local')} vs {datos_partido.get('away_name', 'Visitante')}. Renderizando plantilla...")
     return render_template(
         'index.html',
-        matches=active_matches,
+        data=datos_partido,
+        format_ah=format_ah_as_decimal_string_of,
         upcoming_matches=upcoming_matches,
         finished_matches=finished_matches,
-        handicap_filter=handicap_filter,
-        goal_line_filter=goal_line_filter,
-        handicap_options=handicap_options,
-        goal_line_options=goal_line_options,
-        page_mode=page_mode,
-        page_title=page_title,
-        error=error_msg,
+        selected_match_id=target_match_id
     )
-
-@app.route('/')
-def index():
-    print("Recibida petici�n para Pr�ximos Partidos...")
-    return _render_matches_dashboard('upcoming', 'Pr�ximos Partidos')
-
-
-@app.route('/resultados')
-def resultados():
-    print("Recibida petici�n para Partidos Finalizados...")
-    return _render_matches_dashboard('finished', 'Resultados Finalizados')
-
-
-@app.route('/proximos')
-def proximos():
-    print("Recibida petici�n para /proximos")
-    return _render_matches_dashboard('upcoming', 'Pr�ximos Partidos')
-
-@app.route('/api/matches')
-def api_matches():
-    try:
-        offset = int(request.args.get('offset', 0))
-        limit = int(request.args.get('limit', 5))
-        limit = min(limit, 50)
-        matches = asyncio.run(get_main_page_matches_async(limit, offset, request.args.get('handicap'), request.args.get('ou')))
-        return jsonify({'matches': matches})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/finished_matches')
-def api_finished_matches():
-    try:
-        offset = int(request.args.get('offset', 0))
-        limit = int(request.args.get('limit', 5))
-        limit = min(limit, 50)
-        matches = asyncio.run(get_main_page_finished_matches_async(limit, offset, request.args.get('handicap'), request.args.get('ou')))
-        return jsonify({'matches': matches})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/preview_basico/<string:match_id>')
@@ -725,44 +712,6 @@ def _select_default_match_id(preloaded_upcoming, preloaded_finished):
     if preloaded_finished:
         return preloaded_finished[0].get('id')
     return None
-
-
-# --- NUEVA RUTA PARA MOSTRAR EL ESTUDIO DETALLADO ---
-@app.route('/estudio', defaults={'match_id': None})
-@app.route('/estudio/<string:match_id>')
-def mostrar_estudio(match_id):
-    """
-    Vista principal del estudio con barra lateral integrada.
-    """
-    print(f"Recibida petición para el estudio del partido ID: {match_id}")
-
-    dataset = load_data_from_file()
-    upcoming_matches = (dataset.get('upcoming_matches') or [])[:20]
-    finished_matches = (dataset.get('finished_matches') or [])[:20]
-
-    requested_match_id = match_id or request.args.get('match_id')
-    target_match_id = requested_match_id or _select_default_match_id(upcoming_matches, finished_matches)
-
-    if not target_match_id:
-        abort(404, description='No hay partidos disponibles para analizar.')
-
-    datos_partido = analizar_partido_completo(target_match_id)
-
-    if not datos_partido or "error" in datos_partido:
-        error_message = (datos_partido or {}).get('error', 'Error desconocido')
-        print(f"Error al obtener datos para {target_match_id}: {error_message}")
-        abort(500, description=error_message)
-
-    datos_partido['match_id'] = target_match_id
-    print(f"Datos obtenidos para {datos_partido['home_name']} vs {datos_partido['away_name']}. Renderizando plantilla...")
-    return render_template(
-        'estudio.html',
-        data=datos_partido,
-        format_ah=format_ah_as_decimal_string_of,
-        upcoming_matches=upcoming_matches,
-        finished_matches=finished_matches,
-        selected_match_id=target_match_id
-    )
 
 
 @app.route('/api/estudio_panel/<string:match_id>')
@@ -1111,5 +1060,3 @@ def start_analysis_background():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) # debug=True es útil para desarrollar
-
-
