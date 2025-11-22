@@ -675,6 +675,12 @@ def _detect_chrome_binary() -> str | None:
         "/usr/bin/chromium",
         "/usr/bin/google-chrome",
     ]
+    # Playwright cache (Streamlit Cloud / Render) typical path
+    home = Path.home()
+    cache_root = home / ".cache" / "ms-playwright"
+    if cache_root.exists():
+        for chrome_path in cache_root.rglob("chrome-linux/chrome"):
+            candidates.append(str(chrome_path))
     for cand in candidates:
         if cand and Path(cand).exists():
             return cand
