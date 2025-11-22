@@ -1,10 +1,10 @@
 """
-Streamlit viewer for scraped match data.
+Streamlit UI rebuilt to mirror the layout shown in Screenshot_1.
 
-The app reads a `data.json` file (either uploaded by the user or already
-present in the repo) and renders upcoming/finished matches with basic
-filters. It also has an optional light scrape (requests-first, Playwright
-fallback) to refrescar las listas si el entorno lo permite.
+Left side: matches loaded from data.json. Right side: the advanced analysis for
+the selected match (pulls cached previews when available). Designed to work on
+Render without needing browsers; live analysis stays optional/disabled unless
+you enable Selenium/Playwright yourself.
 """
 
 from __future__ import annotations
@@ -16,19 +16,22 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import sys
 
-import pandas as pd
 import streamlit as st
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR / "src"))
 sys.path.insert(0, str(BASE_DIR / "scripts"))
 
+# Live analysis is optional; keep a safe import guard so the app still runs on Render.
+try:
+    from modules.estudio_scraper import analizar_partido_completo  # type: ignore
+except Exception:  # pragma: no cover - defensive for cloud deploys without Selenium
+    analizar_partido_completo = None  # type: ignore
+
 from scripts.scraping_logic import (
     get_main_page_finished_matches_async,
     get_main_page_matches_async,
 )
-from modules.estudio_scraper import analizar_partido_completo
-
 
 DEFAULT_DATA_PATHS = [
     Path("data.json"),
@@ -38,6 +41,101 @@ PREVIEW_CACHE_DIRS = [
     Path("src/static/cached_previews"),
     Path("static/cached_previews"),
 ]
+
+
+def _inject_global_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+            --bg: #f6f8fb;
+            --card: #ffffff;
+            --primary: #2563eb;
+            --away: #f97316;
+            --muted: #475569;
+        }
+        .stApp { background: var(--bg); }
+        .block-container { padding-top: 0.8rem; }
+        h1, h2, h3, h4, h5, h6 { color: #0f172a; }
+        .panel-card {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 18px 20px;
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+            border: 1px solid #e2e8f0;
+        }
+        .panel-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .panel-title { font-size: 1.9rem; font-weight: 800; margin: 0; }
+        .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; margin: 0 0 4px 0; }
+        .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 11px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        .chip.ah { background: #eef2ff; color: #1d4ed8; border-color: #c7d2fe; }
+        .chip.ou { background: #ecfdf3; color: #047857; border-color: #bbf7d0; }
+        .score-box { background: #0f172a; color: #fff; border-radius: 12px; padding: 10px 14px; min-width: 140px; text-align: center; }
+        .score-value { font-size: 1.6rem; font-weight: 800; }
+        .section-title { font-weight: 800; font-size: 1.2rem; margin: 14px 0 8px 0; }
+        .section-subtle { color: var(--muted); font-size: 0.95rem; margin-bottom: 8px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+        .mini-card {
+            background: var(--card);
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+        }
+        .mini-card h5, .mini-card h6 { margin: 0 0 6px 0; }
+        .mini-stat-table { width: 100%; border-collapse: collapse; }
+        .mini-stat-table td { padding: 3px 6px; font-size: 0.9rem; }
+        .mini-stat-table td:first-child { font-weight: 700; color: var(--primary); }
+        .mini-stat-table td:last-child { font-weight: 700; color: var(--away); text-align: right; }
+        .cover-ok { color: #16a34a; font-weight: 800; }
+        .cover-ko { color: #dc2626; font-weight: 800; }
+        .cover-neutral { color: #6b7280; font-weight: 700; }
+        .match-list { max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 6px; }
+        div[role="radiogroup"] { gap: 0.45rem; }
+        div[role="radiogroup"] > label {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 9px 12px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+        div[role="radiogroup"] > label:hover { border-color: var(--primary); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.16); }
+        div[role="radiogroup"] input { display: none; }
+        div[role="radiogroup"] > label[data-checked="true"],
+        div[role="radiogroup"] > label[aria-checked="true"] {
+            border: 2px solid var(--primary);
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18);
+        }
+        div[role="radiogroup"] p { margin: 0; }
+        .match-line { font-weight: 700; color: #0f172a; font-size: 0.98rem; }
+        .match-sub { color: #475569; font-size: 0.86rem; margin-top: 2px; }
+        .badge-ah { background: #eef2ff; color: #1d4ed8; padding: 3px 8px; border-radius: 999px; font-weight: 700; font-size: 0.78rem; }
+        .badge-ou { background: #ecfdf3; color: #047857; padding: 3px 8px; border-radius: 999px; font-weight: 700; font-size: 0.78rem; margin-left: 6px; }
+        .empty-card { padding: 12px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; color: #475569; }
+        .market-box { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 12px; background: #f8fafc; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
@@ -51,7 +149,6 @@ def _parse_datetime(value: Any) -> Optional[datetime]:
             return datetime.strptime(value, fmt)
         except ValueError:
             continue
-    # Fallback: isoformat parser
     try:
         return datetime.fromisoformat(value)
     except Exception:
@@ -125,11 +222,6 @@ def _scrape_live(limit_upcoming: int = 30, limit_finished: int = 30) -> Dict[str
         return {"upcoming_matches": [], "finished_matches": []}
 
 
-def _build_filter_options(matches: List[Dict[str, Any]], field: str) -> List[str]:
-    values = sorted({str(m.get(field)) for m in matches if m.get(field) not in (None, "", "N/A")})
-    return ["(Todos)"] + values
-
-
 def _load_cached_preview(match_id: str) -> Optional[Dict[str, Any]]:
     if not match_id:
         return None
@@ -143,224 +235,310 @@ def _load_cached_preview(match_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _render_preview(data: Dict[str, Any]) -> None:
-    st.subheader("Analisis completo (cache)")
-    if not data:
-        st.info("No hay cache de analisis para este partido. Sube un JSON o generalo antes en tu entorno.")
-        return
-
-    meta_cols = st.columns(3)
-    meta_cols[0].metric("Local", data.get("home_team", "-"))
-    meta_cols[1].metric("Visitante", data.get("away_team", "-"))
-    meta_cols[2].metric("Marcador", data.get("final_score") or data.get("score") or "-")
-
-    if data.get("match_time") or data.get("match_date"):
-        st.caption(f"Fecha: {data.get('match_date', '-')}, Hora: {data.get('match_time', '-')}")
-
-    if data.get("simplified_html"):
-        st.markdown("Vista simplificada", help="Generada por el analisis original")
-        st.components.v1.html(data["simplified_html"], height=600, scrolling=True)
-    else:
-        st.markdown("Datos (JSON)")
-        st.json(data)
+def _format_match_label(match: Dict[str, Any]) -> str:
+    time_txt = match.get("time", "N/D")
+    names = f"{match.get('home_team', '-') } vs {match.get('away_team', '-')}"
+    ah = match.get("handicap", "N/A")
+    gl = match.get("goal_line", "N/A")
+    return f"{time_txt} | {names}\nAH {ah}   /   O/U {gl}"
 
 
-def _render_live_analysis(match_id: str) -> None:
+def _filter_matches(matches: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+    if not query:
+        return matches
+    q = query.lower().strip()
+    return [
+        m for m in matches
+        if q in str(m.get("home_team", "")).lower()
+        or q in str(m.get("away_team", "")).lower()
+    ]
+
+
+def _sort_matches(matches: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return sorted(matches, key=lambda x: x.get("time_obj") or datetime.max)
+
+
+def _find_match_by_id(all_matches: List[Dict[str, Any]], match_id: Optional[str]) -> Optional[Dict[str, Any]]:
     if not match_id:
-        st.info("Introduce un ID de partido para analizar en vivo.")
+        return None
+    for m in all_matches:
+        if str(m.get("id")) == str(match_id):
+            return m
+    return None
+
+
+def _cover_badge(status: Optional[str]) -> str:
+    if not status:
+        return ""
+    status = status.upper()
+    if status == "CUBIERTO":
+        return '<span class="cover-ok">CUBIERTO</span>'
+    if status in ("NO CUBIERTO", "NO_CUBIERTO"):
+        return '<span class="cover-ko">NO CUBIERTO</span>'
+    if status in ("PUSH", "NULO", "NEUTRO"):
+        return '<span class="cover-neutral">PUSH</span>'
+    return f'<span class="cover-neutral">{status}</span>'
+
+
+def _stat_rows_table(rows: Optional[List[Dict[str, Any]]]) -> str:
+    if not rows:
+        return ""
+    html_rows = []
+    for stat in rows:
+        html_rows.append(
+            f"<tr><td>{stat.get('home', '')}</td>"
+            f"<td style='text-align:center;color:#6b7280;font-weight:600;'>{stat.get('label', '')}</td>"
+            f"<td>{stat.get('away', '')}</td></tr>"
+        )
+    return f"<table class='mini-stat-table'>{''.join(html_rows)}</table>"
+
+
+def _recent_card(title: str, payload: Optional[Dict[str, Any]], accent_class: str) -> str:
+    if not payload:
+        return f"<div class='mini-card'><h6>{title}</h6><div class='empty-card'>Sin datos disponibles.</div></div>"
+    score = payload.get("score", "-")
+    ah = payload.get("ah", "-")
+    ou = payload.get("ou", "-")
+    cover = _cover_badge(payload.get("cover_status"))
+    stats = _stat_rows_table(payload.get("stats_rows"))
+    date_txt = payload.get("date", "")
+    return (
+        f"<div class='mini-card'>"
+        f"<h6 class='{accent_class}'>{title}</h6>"
+        f"<div style='font-size:1.1rem;font-weight:800;margin-bottom:4px;'>{score}</div>"
+        f"<div class='match-sub'>{payload.get('home','-')} vs {payload.get('away','-')}</div>"
+        f"<div class='match-sub'>{date_txt}</div>"
+        f"<div class='match-sub'>AH: <strong>{ah}</strong> / O/U: <strong>{ou}</strong></div>"
+        f"<div style='margin:4px 0;'>{cover}</div>"
+        f"{stats}"
+        f"</div>"
+    )
+
+
+def _recent_section(analysis: Dict[str, Any]) -> str:
+    data = analysis.get("recent_indirect_full") or {}
+    html_blocks = []
+    html_blocks.append(_recent_card("Ultimo local (casa)", data.get("last_home"), "home-color"))
+    html_blocks.append(_recent_card("Ultimo visitante (fuera)", data.get("last_away"), "away-color"))
+    html_blocks.append(_recent_card("H2H referencia", data.get("h2h_col3"), "match-sub"))
+    return "<div class='grid-3'>" + "".join(html_blocks) + "</div>"
+
+
+def _comparativas_section(analysis: Dict[str, Any]) -> str:
+    comps = analysis.get("comparativas_indirectas") or {}
+    left = comps.get("left")
+    right = comps.get("right")
+    if not left and not right:
+        return "<div class='empty-card'>Sin comparativas indirectas guardadas.</div>"
+
+    def _card(label: str, payload: Dict[str, Any]) -> str:
+        if not payload:
+            return f"<div class='mini-card'><h6>{label}</h6><div class='empty-card'>No disponible.</div></div>"
+        stats = _stat_rows_table(payload.get("stats_rows"))
+        cover = _cover_badge(payload.get("cover_status"))
+        analysis_line = payload.get("analysis", "")
+        return (
+            f"<div class='mini-card'>"
+            f"<h6>{label}</h6>"
+            f"<div class='match-line'>{payload.get('score','-')}</div>"
+            f"<div class='match-sub'>{payload.get('home_team','-')} vs {payload.get('away_team','-')}</div>"
+            f"<div class='match-sub'>AH: <strong>{payload.get('ah','-')}</strong> / O/U: <strong>{payload.get('ou','-')}</strong></div>"
+            f"<div class='match-sub'>Localia: <strong>{payload.get('localia','-')}</strong></div>"
+            f"<div style='margin:4px 0;'>{cover}</div>"
+            f"{stats}"
+            f"{f'<div class=\"match-sub\" style=\"margin-top:6px;\">{analysis_line}</div>' if analysis_line else ''}"
+            f"</div>"
+        )
+
+    cards = [
+        _card("Local vs ultimo rival visitante", left),
+        _card("Visitante vs ultimo rival local", right),
+    ]
+    return "<div class='grid-2'>" + "".join(cards) + "</div>"
+
+
+def _standings_section(analysis: Dict[str, Any], home: str, away: str) -> str:
+    home_std = analysis.get("home_standings")
+    away_std = analysis.get("away_standings")
+    home_ou = analysis.get("home_ou_stats", {})
+    away_ou = analysis.get("away_ou_stats", {})
+    if not home_std and not away_std and not home_ou and not away_ou:
+        return "<div class='empty-card'>Sin datos de clasificacion/Over-Under en el analisis cacheado.</div>"
+
+    def _block(title: str, std: Dict[str, Any], ou_stats: Dict[str, Any], accent: str) -> str:
+        parts = [f"<div class='{accent}' style='font-weight:800;font-size:1.05rem;'>{title}</div>"]
+        if std:
+            parts.append(
+                f"<div class='match-sub'>Posicion: <strong>{std.get('ranking','-')}</strong></div>"
+                f"<div class='match-sub'>PJ: {std.get('total_pj','-')} | V-E-D: {std.get('total_v','-')}-{std.get('total_e','-')}-{std.get('total_d','-')} | GF:GC {std.get('total_gf','-')}:{std.get('total_gc','-')}</div>"
+            )
+            if std.get("specific_type"):
+                parts.append(
+                    f"<div class='match-sub'>{std.get('specific_type')}: PJ {std.get('specific_pj','-')} | V-E-D {std.get('specific_v','-')}-{std.get('specific_e','-')}-{std.get('specific_d','-')} | GF:GC {std.get('specific_gf','-')}:{std.get('specific_gc','-')}</div>"
+                )
+        if ou_stats and ou_stats.get("total"):
+            parts.append(
+                f"<div class='match-sub'>O/U ult. {ou_stats.get('total')} part.: "
+                f"<span style='color:#16a34a;font-weight:800;'>Over {ou_stats.get('over_pct','-')}%</span> / "
+                f"<span style='color:#dc2626;font-weight:800;'>Under {ou_stats.get('under_pct','-')}%</span> / "
+                f"<span style='color:#6b7280;font-weight:700;'>Push {ou_stats.get('push_pct','-')}%</span></div>"
+            )
+        return "<div class='mini-card'>" + "".join(parts) + "</div>"
+
+    blocks = []
+    blocks.append(_block(home, home_std or {}, home_ou or {}, "home-color"))
+    blocks.append(_block(away, away_std or {}, away_ou or {}, "away-color"))
+    return "<div class='grid-2'>" + "".join(blocks) + "</div>"
+
+
+def render_analysis_panel(
+    match: Optional[Dict[str, Any]],
+    analysis: Optional[Dict[str, Any]],
+    source_label: str,
+) -> None:
+    if not match:
+        st.info("Selecciona un partido para ver su analisis.")
         return
-    with st.spinner("Analizando en vivo (requiere navegador/Playwright/driver) ..."):
-        try:
-            data = analizar_partido_completo(match_id)
-        except Exception as exc:
-            st.error(f"No se pudo analizar el partido {match_id}: {exc}")
-            return
 
-    if not isinstance(data, dict):
-        st.error("El analisis no devolvio datos validos.")
-        return
-    if data.get("error"):
-        st.error(f"Error del analisis: {data.get('error')}")
-        return
+    home_name = (analysis or {}).get("home_name") or (analysis or {}).get("home_team") or match.get("home_team", "-")
+    away_name = (analysis or {}).get("away_name") or (analysis or {}).get("away_team") or match.get("away_team", "-")
+    ah = match.get("handicap", "N/A")
+    gl = match.get("goal_line", "N/A")
+    score = (analysis or {}).get("final_score") or match.get("score") or "-"
+    display_time = (analysis or {}).get("match_time") or (analysis or {}).get("match_date") or match.get("time", "-")
 
-    st.success(f"Analisis completado para ID {match_id}")
-    header = st.columns(3)
-    header[0].metric("Local", data.get("home_name", "-"))
-    header[1].metric("Visitante", data.get("away_name", "-"))
-    header[2].metric("Marcador", data.get("final_score") or data.get("score") or "-")
+    sections: List[str] = []
+    sections.append(f"<div class='section-title'>Analisis de Partido Avanzado</div>")
 
-    if data.get("market_analysis_html"):
-        st.markdown("Vista de mercado")
-        st.components.v1.html(data["market_analysis_html"], height=500, scrolling=True)
+    if analysis:
+        sections.append(_standings_section(analysis, home_name, away_name))
+        sections.append("<div class='section-title'>Historial inmediato</div>")
+        sections.append(_recent_section(analysis))
+        sections.append("<div class='section-title'>Comparativas indirectas</div>")
+        sections.append(_comparativas_section(analysis))
 
-    st.markdown("Datos completos")
-    st.json(data)
+        market_html = analysis.get("simplified_html") or analysis.get("market_analysis_html")
+        if market_html:
+            sections.append("<div class='section-title'>Vista de mercado / H2H</div>")
+            sections.append(f"<div class='market-box'>{market_html}</div>")
+    else:
+        sections.append("<div class='empty-card'>No hay analisis cacheado para este partido. Puedes subir un JSON de analisis o generarlo en tu entorno local.</div>")
 
+    panel_html = f"""
+    <div class="panel-card">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Fuente de datos: {source_label}</p>
+                <div class="panel-title">{home_name} vs {away_name}</div>
+                <div class="chips">
+                    <span class="chip ah">AH {ah}</span>
+                    <span class="chip ou">O/U {gl}</span>
+                </div>
+                <div class="match-sub" style="margin-top:6px;">ID {match.get('id','-')} | {display_time}</div>
+            </div>
+            <div class="score-box">
+                <div class="match-sub" style="color:#cbd5e1;">Marcador</div>
+                <div class="score-value">{score}</div>
+            </div>
+        </div>
+        {''.join(sections)}
+    </div>
+    """
 
-def _filter_matches(
-    matches: List[Dict[str, Any]],
-    search: str,
-    handicap: str,
-    goal_line: str,
-    only_future: bool,
-) -> List[Dict[str, Any]]:
-    search_lower = search.lower().strip()
-    results = []
-    now = datetime.utcnow()
+    st.markdown(panel_html, unsafe_allow_html=True)
 
-    for m in matches:
-        if only_future and isinstance(m.get("time_obj"), datetime) and m["time_obj"] < now:
-            continue
-        if search_lower:
-            if search_lower not in str(m.get("home_team", "")).lower() \
-               and search_lower not in str(m.get("away_team", "")).lower():
-                continue
-        if handicap and handicap != "(Todos)" and str(m.get("handicap")) != handicap:
-            continue
-        if goal_line and goal_line != "(Todos)" and str(m.get("goal_line")) != goal_line:
-            continue
-        results.append(m)
-
-    results.sort(key=lambda x: x.get("time_obj") or datetime.max)
-    return results
-
-
-def _render_list(title: str, matches: List[Dict[str, Any]]) -> None:
-    st.subheader(title, divider="gray")
-    if not matches:
-        st.info("No hay partidos para mostrar con los filtros actuales.")
-        return
-
-    for m in matches:
-        cols = st.columns([3, 2, 2, 2])
-        with cols[0]:
-            st.markdown(f"**{m['home_team']}** vs **{m['away_team']}**")
-            st.caption(f"ID: {m['id']}")
-        with cols[1]:
-            st.markdown(f"Hora: {m.get('time', 'N/A')}")
-        with cols[2]:
-            st.markdown(f"AH: `{m.get('handicap', 'N/A')}`")
-        with cols[3]:
-            gl = m.get("goal_line", "N/A")
-            st.markdown(f"Goles: `{gl}`")
-        if m.get("score"):
-            st.write(f"Marcador: **{m['score']}**")
-        st.divider()
+    if analysis:
+        with st.expander("Ver JSON de analisis"):
+            st.json(analysis)
 
 
 def main() -> None:
     st.set_page_config(page_title="Panel de Partidos", layout="wide")
-    st.title("Partidos - Streamlit")
-    st.caption("Visor ligero usando los datos ya scrapeados (data.json).")
+    _inject_global_styles()
 
-    with st.sidebar:
-        st.header("Fuente de datos")
-        upload = st.file_uploader("Sube tu data.json", type=["json"])
-        dataset, source_label = load_dataset(upload.read() if upload else None)
-        # Scrape ligero (requests primero, Playwright solo si existe)
-        if st.button("Scrapear listas (ligero)", use_container_width=True, help="Usa requests y si puede Playwright para refrescar las listas"):
-            dataset = _scrape_live(limit_upcoming=40, limit_finished=40)
-            source_label = "Scrape en vivo (ligero)"
-            st.session_state["live_dataset"] = dataset
-        elif "live_dataset" in st.session_state:
-            dataset = st.session_state["live_dataset"]
-            source_label = "Scrape en vivo (ligero)"
+    st.title("Panel de partidos")
+    st.caption("Datos a la izquierda, analisis completo a la derecha (igual a Screenshot_1).")
 
-        st.write(f"Fuente: {source_label}")
+    upload_dataset = st.sidebar.file_uploader("Sube tu data.json", type=["json"])
+    upload_preview = st.sidebar.file_uploader("Sube un analisis JSON (opcional)", type=["json"], key="preview_uploader")
 
-        st.header("Filtros")
-        search = st.text_input("Equipo (contiene)", "")
+    dataset, source_label = load_dataset(upload_dataset.read() if upload_dataset else None)
 
-        handicap_opts = _build_filter_options(
-            dataset["upcoming_matches"] + dataset["finished_matches"], "handicap"
+    if st.sidebar.button("Refrescar data local", use_container_width=True):
+        load_dataset.clear()
+        dataset, source_label = load_dataset(upload_dataset.read() if upload_dataset else None)
+        st.sidebar.success("Datos recargados.")
+
+    if st.sidebar.button("Scrapear listas (ligero)", use_container_width=True, help="Usa requests y Playwright si esta disponible."):
+        dataset = _scrape_live(limit_upcoming=40, limit_finished=40)
+        source_label = "Scrape en vivo (ligero)"
+
+    st.sidebar.write(f"Fuente activa: {source_label}")
+    st.sidebar.write(f"Proximos: {len(dataset['upcoming_matches'])} | Finalizados: {len(dataset['finished_matches'])}")
+
+    all_matches = dataset["upcoming_matches"] + dataset["finished_matches"]
+
+    list_col, panel_col = st.columns([0.95, 2.05], gap="large")
+
+    with list_col:
+        st.markdown("#### Partidos (data.json)")
+        tab_choice = st.radio(
+            "Tipo de lista",
+            options=["Proximos", "Finalizados", "Todos"],
+            index=0,
+            horizontal=True,
+            label_visibility="collapsed",
         )
-        goal_opts = _build_filter_options(
-            dataset["upcoming_matches"] + dataset["finished_matches"], "goal_line"
-        )
-        handicap = st.selectbox("Handicap", handicap_opts, index=0)
-        goal_line = st.selectbox("Linea de goles", goal_opts, index=0)
+        search = st.text_input("Buscar equipo", "", placeholder="Escribe un nombre...", label_visibility="collapsed")
 
-        st.checkbox("Solo partidos futuros", value=True, key="only_future")
-
-        st.header("Analisis por ID (cache)")
-        manual_match_id = st.text_input("ID manual", value="", key="manual_match_id_input")
-        preview_upload = st.file_uploader("Sube preview JSON (opcional)", type=["json"], key="preview_uploader")
-        st.header("Analisis en vivo (requiere navegador)")
-        live_match_id = st.text_input("ID a analizar en vivo", value="", key="live_match_id_input")
-        run_live = st.button("Analizar en vivo", use_container_width=True, help="Usa Selenium/Playwright segun modules.estudio_scraper")
-
-    upcoming_filtered = _filter_matches(
-        dataset["upcoming_matches"], search, handicap, goal_line, st.session_state.get("only_future", True)
-    )
-    finished_filtered = _filter_matches(
-        dataset["finished_matches"], search, handicap, goal_line, False
-    )
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Proximos partidos", len(upcoming_filtered))
-    with col2:
-        st.metric("Partidos finalizados", len(finished_filtered))
-
-    tab1, tab2 = st.tabs(["Proximos", "Finalizados"])
-    with tab1:
-        _render_list("Proximos partidos", upcoming_filtered)
-    with tab2:
-        _render_list("Finalizados", finished_filtered)
-
-    if upcoming_filtered or finished_filtered:
-        all_rows = []
-        for label, items in (("upcoming", upcoming_filtered), ("finished", finished_filtered)):
-            for item in items:
-                row = dict(item)
-                row["section"] = label
-                all_rows.append(row)
-        df = pd.DataFrame(all_rows)
-        st.download_button(
-            "Descargar resultado filtrado (CSV)",
-            data=df.to_csv(index=False).encode("utf-8"),
-            file_name="matches_filtrados.csv",
-            mime="text/csv",
-            key="download_filtered",
-        )
-
-    # Panel de estudio basado en cache existente
-    st.divider()
-    st.header("Estudio del partido (usa cache existente)")
-    combined = upcoming_filtered + finished_filtered
-    options = [f"{m['id']} - {m['home_team']} vs {m['away_team']}" for m in combined]
-    match_lookup = {opt: m["id"] for opt, m in zip(options, combined)}
-
-    selected = st.selectbox("Selecciona un partido", options, disabled=not options, placeholder="Elegir de la lista")
-    selected_id = match_lookup.get(selected) if selected else None
-    manual_id = st.session_state.get("manual_match_id_input", "").strip()
-    target_id = selected_id or manual_id
-
-    # Prefer uploaded preview JSON when provided
-    preview_data = None
-    if preview_upload:
-        try:
-            preview_data = json.loads(preview_upload.read())
-            if not target_id and isinstance(preview_data, dict):
-                target_id = str(preview_data.get("match_id") or preview_data.get("id") or "")
-        except Exception:
-            st.warning("No se pudo leer el preview subido.")
-
-    if not preview_data and target_id:
-        preview_data = _load_cached_preview(target_id)
-
-    if not target_id and not preview_data:
-        st.info("Selecciona un partido o ingresa un ID en la barra lateral.")
-    else:
-        _render_preview(preview_data)
-
-    if run_live:
-        st.divider()
-        st.header("Analisis en vivo")
-        if live_match_id.strip():
-            _render_live_analysis(live_match_id.strip())
+        if tab_choice == "Proximos":
+            matches = _filter_matches(dataset["upcoming_matches"], search)
+        elif tab_choice == "Finalizados":
+            matches = _filter_matches(dataset["finished_matches"], search)
         else:
-            st.warning("Introduce un ID para analizar en vivo.")
+            matches = _filter_matches(all_matches, search)
+
+        matches = _sort_matches(matches)
+        st.markdown(f"<p class='section-subtle'>Mostrando {len(matches)} partidos</p>", unsafe_allow_html=True)
+
+        selected_match_id: Optional[str] = st.session_state.get("selected_match_id")
+        options_ids = [m["id"] for m in matches]
+        match_lookup = {m["id"]: m for m in matches}
+
+        if options_ids:
+            default_index = 0
+            if selected_match_id in options_ids:
+                default_index = options_ids.index(selected_match_id)
+            selected_match_id = st.radio(
+                "Partidos",
+                options=options_ids,
+                format_func=lambda mid: _format_match_label(match_lookup[mid]),
+                index=default_index,
+                label_visibility="collapsed",
+                key="match_selector",
+            )
+            st.session_state["selected_match_id"] = selected_match_id
+        else:
+            st.info("No hay partidos con los filtros actuales.")
+            selected_match_id = None
+
+    with panel_col:
+        selected_match = _find_match_by_id(all_matches, selected_match_id)
+        analysis_data = None
+        analysis_source = "Sin analisis cacheado"
+
+        if upload_preview:
+            try:
+                analysis_data = json.loads(upload_preview.read())
+                analysis_source = "JSON subido"
+            except Exception:
+                st.warning("No se pudo leer el JSON de analisis subido.")
+        if not analysis_data and selected_match_id:
+            analysis_data = _load_cached_preview(selected_match_id)
+            if analysis_data:
+                analysis_source = "Cache local"
+
+        render_analysis_panel(selected_match, analysis_data, analysis_source)
 
 
 if __name__ == "__main__":
