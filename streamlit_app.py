@@ -380,6 +380,7 @@ def _comparativas_section(analysis: Dict[str, Any]) -> str:
             stats = _stat_rows_table(payload.get("stats_rows"))
             cover = _cover_badge(payload.get("cover_status"))
             analysis_line = payload.get("analysis", "")
+            extra = f"<div class='match-sub' style='margin-top:6px;'>{analysis_line}</div>" if analysis_line else ""
             return (
                 f"<div class='mini-card'>"
                 f"<h6>{label}</h6>"
@@ -389,7 +390,7 @@ def _comparativas_section(analysis: Dict[str, Any]) -> str:
                 f"<div class='match-sub'>Localia: <strong>{payload.get('localia','-')}</strong></div>"
                 f"<div style='margin:4px 0;'>{cover}</div>"
                 f"{stats}"
-                f"{(lambda txt: f\"<div class='match-sub' style='margin-top:6px;'>{txt}</div>\" if txt else '')(analysis_line)}"
+                f"{extra}"
                 f"</div>"
             )
 
