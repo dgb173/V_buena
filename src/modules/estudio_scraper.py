@@ -6,6 +6,8 @@ import requests
 import re
 import math
 import threading
+import os
+from pathlib import Path
 from contextlib import contextmanager
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -13,10 +15,12 @@ from urllib3.util.retry import Retry
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
+from webdriver_manager.chrome import ChromeDriverManager
 
 # --- CONFIGURACIÓN GLOBAL ---
 BASE_URL_OF = "https://live18.nowgoal25.com"
@@ -663,6 +667,20 @@ def _build_selenium_options():
     return options
 
 
+def _detect_chrome_binary() -> str | None:
+    env_bin = os.environ.get("CHROME_BINARY") or os.environ.get("GOOGLE_CHROME_BIN")
+    candidates = [
+        env_bin,
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+        "/usr/bin/google-chrome",
+    ]
+    for cand in candidates:
+        if cand and Path(cand).exists():
+            return cand
+    return None
+
+
 def _reset_selenium_driver():
     global _driver_instance
     with _driver_instance_lock:
@@ -679,7 +697,21 @@ def _get_or_create_selenium_driver():
     with _driver_instance_lock:
         if _driver_instance is None:
             try:
-                _driver_instance = webdriver.Chrome(options=_build_selenium_options())
+                options = _build_selenium_options()
+                binary = _detect_chrome_binary()
+                if binary:
+                    options.binary_location = binary
+                driver_path = os.environ.get("CHROMEDRIVER_PATH")
+                if not driver_path:
+                    try:
+                        driver_path = ChromeDriverManager().install()
+                    except Exception as exc:
+                        print(f"Error descargando ChromeDriver: {exc}")
+                        driver_path = None
+                if driver_path:
+                    _driver_instance = webdriver.Chrome(service=ChromeService(driver_path), options=options)
+                else:
+                    _driver_instance = webdriver.Chrome(options=options)
             except WebDriverException as exc:
                 print(f"Error inicializando Selenium driver: {exc}")
                 _driver_instance = None
