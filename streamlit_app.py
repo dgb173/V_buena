@@ -374,24 +374,24 @@ def _comparativas_section(analysis: Dict[str, Any]) -> str:
     if not left and not right:
         return "<div class='empty-card'>Sin comparativas indirectas guardadas.</div>"
 
-    def _card(label: str, payload: Dict[str, Any]) -> str:
-        if not payload:
-            return f"<div class='mini-card'><h6>{label}</h6><div class='empty-card'>No disponible.</div></div>"
-        stats = _stat_rows_table(payload.get("stats_rows"))
-        cover = _cover_badge(payload.get("cover_status"))
-        analysis_line = payload.get("analysis", "")
-        return (
-            f"<div class='mini-card'>"
-            f"<h6>{label}</h6>"
-            f"<div class='match-line'>{payload.get('score','-')}</div>"
-            f"<div class='match-sub'>{payload.get('home_team','-')} vs {payload.get('away_team','-')}</div>"
-            f"<div class='match-sub'>AH: <strong>{payload.get('ah','-')}</strong> / O/U: <strong>{payload.get('ou','-')}</strong></div>"
-            f"<div class='match-sub'>Localia: <strong>{payload.get('localia','-')}</strong></div>"
-            f"<div style='margin:4px 0;'>{cover}</div>"
-            f"{stats}"
-            f"{f'<div class=\"match-sub\" style=\"margin-top:6px;\">{analysis_line}</div>' if analysis_line else ''}"
-            f"</div>"
-        )
+        def _card(label: str, payload: Dict[str, Any]) -> str:
+            if not payload:
+                return f"<div class='mini-card'><h6>{label}</h6><div class='empty-card'>No disponible.</div></div>"
+            stats = _stat_rows_table(payload.get("stats_rows"))
+            cover = _cover_badge(payload.get("cover_status"))
+            analysis_line = payload.get("analysis", "")
+            return (
+                f"<div class='mini-card'>"
+                f"<h6>{label}</h6>"
+                f"<div class='match-line'>{payload.get('score','-')}</div>"
+                f"<div class='match-sub'>{payload.get('home_team','-')} vs {payload.get('away_team','-')}</div>"
+                f"<div class='match-sub'>AH: <strong>{payload.get('ah','-')}</strong> / O/U: <strong>{payload.get('ou','-')}</strong></div>"
+                f"<div class='match-sub'>Localia: <strong>{payload.get('localia','-')}</strong></div>"
+                f"<div style='margin:4px 0;'>{cover}</div>"
+                f"{stats}"
+                f"{(lambda txt: f\"<div class='match-sub' style='margin-top:6px;'>{txt}</div>\" if txt else '')(analysis_line)}"
+                f"</div>"
+            )
 
     cards = [
         _card("Local vs ultimo rival visitante", left),
