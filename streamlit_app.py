@@ -1,10 +1,10 @@
 """
-Streamlit UI rebuilt to mirror the layout shown in Screenshot_1.
+Streamlit UI tuned to mirror the layout shown in Screenshot_1.
 
-Left side: matches loaded from data.json. Right side: the advanced analysis for
-the selected match (pulls cached previews when available). Designed to work on
-Render without needing browsers; live analysis stays optional/disabled unless
-you enable Selenium/Playwright yourself.
+Left side: matches loaded from data.json. Right side: the advanced analysis
+cache (previews generados por reference_code) para el partido elegido. Pensado
+para Render sin depender de navegadores; el scraping completo sigue siendo
+opcional y defensivo.
 """
 
 from __future__ import annotations
@@ -48,21 +48,26 @@ def _inject_global_styles() -> None:
         """
         <style>
         :root {
-            --bg: #f6f8fb;
+            --bg: #eef2f9;
             --card: #ffffff;
-            --primary: #2563eb;
+            --primary: #2d6ce6;
             --away: #f97316;
-            --muted: #475569;
+            --muted: #5b667a;
+            --chip-ah: #e8edff;
+            --chip-ou: #e6f7ef;
         }
-        .stApp { background: var(--bg); }
-        .block-container { padding-top: 0.8rem; }
-        h1, h2, h3, h4, h5, h6 { color: #0f172a; }
+        .stApp {
+            background: linear-gradient(180deg, #f7f9fd 0%, #eef2f9 100%);
+            color: #0f172a;
+        }
+        .block-container { padding-top: 0.4rem; }
+        h1, h2, h3, h4, h5, h6 { color: #0f172a; margin-bottom: 0.35rem; }
         .panel-card {
             background: var(--card);
-            border-radius: 18px;
-            padding: 18px 20px;
-            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
-            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 20px 22px;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+            border: 1px solid #dde3f0;
         }
         .panel-header {
             display: flex;
@@ -71,8 +76,8 @@ def _inject_global_styles() -> None:
             gap: 1rem;
             flex-wrap: wrap;
         }
-        .panel-title { font-size: 1.9rem; font-weight: 800; margin: 0; }
-        .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; margin: 0 0 4px 0; }
+        .panel-title { font-size: 2rem; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+        .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-size: .78rem; margin: 0 0 6px 0; }
         .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
         .chip {
             display: inline-flex;
@@ -82,15 +87,23 @@ def _inject_global_styles() -> None:
             border-radius: 999px;
             font-weight: 700;
             font-size: 0.85rem;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
+            border: 1px solid #dbe5ff;
+            background: #f5f7ff;
             color: #0f172a;
         }
-        .chip.ah { background: #eef2ff; color: #1d4ed8; border-color: #c7d2fe; }
-        .chip.ou { background: #ecfdf3; color: #047857; border-color: #bbf7d0; }
-        .score-box { background: #0f172a; color: #fff; border-radius: 12px; padding: 10px 14px; min-width: 140px; text-align: center; }
-        .score-value { font-size: 1.6rem; font-weight: 800; }
-        .section-title { font-weight: 800; font-size: 1.2rem; margin: 14px 0 8px 0; }
+        .chip.ah { background: var(--chip-ah); color: #1d4ed8; border-color: #c7d2fe; }
+        .chip.ou { background: var(--chip-ou); color: #0f9d58; border-color: #b9f2d2; }
+        .score-box {
+            background: linear-gradient(135deg, #0f172a, #131c2e);
+            color: #fff;
+            border-radius: 14px;
+            padding: 12px 16px;
+            min-width: 160px;
+            text-align: center;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+        }
+        .score-value { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; }
+        .section-title { font-weight: 800; font-size: 1.2rem; margin: 14px 0 8px 0; display: flex; align-items: center; gap: 8px; }
         .section-subtle { color: var(--muted); font-size: 0.95rem; margin-bottom: 8px; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
@@ -110,20 +123,21 @@ def _inject_global_styles() -> None:
         .cover-ko { color: #dc2626; font-weight: 800; }
         .cover-neutral { color: #6b7280; font-weight: 700; }
         .match-list { max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 6px; }
-        div[role="radiogroup"] { gap: 0.45rem; }
+        div[role="radiogroup"] { gap: 0.5rem; }
         div[role="radiogroup"] > label {
             background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 9px 12px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            border: 1px solid #d8e2f2;
+            border-radius: 16px;
+            padding: 10px 12px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+            transition: all .18s ease;
         }
-        div[role="radiogroup"] > label:hover { border-color: var(--primary); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.16); }
+        div[role="radiogroup"] > label:hover { border-color: var(--primary); box-shadow: 0 14px 30px rgba(45, 108, 230, 0.20); transform: translateY(-1px); }
         div[role="radiogroup"] input { display: none; }
         div[role="radiogroup"] > label[data-checked="true"],
         div[role="radiogroup"] > label[aria-checked="true"] {
             border: 2px solid var(--primary);
-            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18);
+            box-shadow: 0 16px 36px rgba(45, 108, 230, 0.25);
         }
         div[role="radiogroup"] p { margin: 0; }
         .match-line { font-weight: 700; color: #0f172a; font-size: 0.98rem; }
@@ -132,6 +146,35 @@ def _inject_global_styles() -> None:
         .badge-ou { background: #ecfdf3; color: #047857; padding: 3px 8px; border-radius: 999px; font-weight: 700; font-size: 0.78rem; margin-left: 6px; }
         .empty-card { padding: 12px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; color: #475569; }
         .market-box { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 12px; background: #f8fafc; }
+        .hero-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+        .hero-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
+        .stButton > button {
+            border-radius: 12px;
+            font-weight: 700;
+            padding: 0.65rem 1rem;
+            border: 1px solid transparent;
+            box-shadow: 0 10px 22px rgba(45, 108, 230, 0.25);
+            background: linear-gradient(135deg, #2d6ce6, #2156ba);
+            color: white;
+        }
+        .stButton > button:hover { filter: brightness(1.02); }
+        .stButton.secondary > button {
+            background: #ecf2ff;
+            color: #2d6ce6;
+            border: 1px solid #d7e3ff;
+            box-shadow: none;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #e9edf7;
+            color: #1f2a44;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -457,24 +500,76 @@ def main() -> None:
     _inject_global_styles()
 
     st.title("Panel de partidos")
-    st.caption("Datos a la izquierda, analisis completo a la derecha (igual a Screenshot_1).")
+    st.caption("Replica visual de Screenshot_1: lista a la izquierda y analisis cache (reference_code) a la derecha.")
 
-    upload_dataset = st.sidebar.file_uploader("Sube tu data.json", type=["json"])
-    upload_preview = st.sidebar.file_uploader("Sube un analisis JSON (opcional)", type=["json"], key="preview_uploader")
+    # Estado inicial de dataset y fuente
+    if "active_dataset" not in st.session_state:
+        initial_data, initial_source = load_dataset(None)
+        st.session_state["active_dataset"] = initial_data
+        st.session_state["data_source_label"] = initial_source
 
-    dataset, source_label = load_dataset(upload_dataset.read() if upload_dataset else None)
+    dataset = st.session_state["active_dataset"]
+    source_label = st.session_state.get("data_source_label", "Sin fuente")
+    active_preview_id = st.session_state.get("active_preview_match_id")
+    selected_match_id_state = st.session_state.get("selected_match_id")
 
-    if st.sidebar.button("Refrescar data local", use_container_width=True):
-        load_dataset.clear()
-        dataset, source_label = load_dataset(upload_dataset.read() if upload_dataset else None)
-        st.sidebar.success("Datos recargados.")
+    header_col, actions_col = st.columns([1.7, 1.3], gap="large")
+    with header_col:
+        st.markdown("### Analisis de Partido Avanzado")
+        st.markdown(
+            f"<div class='pill'>Fuente datos: {source_label}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<p class='section-subtle'>Proximos: {len(dataset['upcoming_matches'])} | Finalizados: {len(dataset['finished_matches'])}</p>",
+            unsafe_allow_html=True,
+        )
 
-    if st.sidebar.button("Scrapear listas (ligero)", use_container_width=True, help="Usa requests y Playwright si esta disponible."):
-        dataset = _scrape_live(limit_upcoming=40, limit_finished=40)
-        source_label = "Scrape en vivo (ligero)"
+    # Controles de accion principales
+    with actions_col:
+        c1, c2 = st.columns(2, gap="small")
+        with c1:
+            preview_btn = st.button("Vista previa rapida", use_container_width=True, key="btn_preview")
+        with c2:
+            refresh_btn = st.button("Actualizar datos", use_container_width=True, key="btn_refresh")
 
-    st.sidebar.write(f"Fuente activa: {source_label}")
-    st.sidebar.write(f"Proximos: {len(dataset['upcoming_matches'])} | Finalizados: {len(dataset['finished_matches'])}")
+        uploaded_dataset_bytes: Optional[bytes] = None
+        uploaded_preview_bytes: Optional[bytes] = None
+        with st.expander("Cargar JSON (data o preview) / opciones", expanded=False):
+            upload_dataset = st.file_uploader("Sube tu data.json", type=["json"])
+            upload_preview = st.file_uploader("Sube un analisis JSON (opcional)", type=["json"], key="preview_uploader_new")
+            col_up, col_reset = st.columns(2, gap="small")
+            if upload_dataset:
+                uploaded_dataset_bytes = upload_dataset.read()
+                col_up.info("Archivo listo para cargar.")
+            if upload_preview:
+                uploaded_preview_bytes = upload_preview.read()
+                col_up.info("Preview JSON listo para usar.")
+
+            if col_up.button("Usar data subida", use_container_width=True):
+                if uploaded_dataset_bytes:
+                    new_data, new_source = load_dataset(uploaded_dataset_bytes)
+                    st.session_state["active_dataset"] = new_data
+                    st.session_state["data_source_label"] = new_source
+                    dataset, source_label = new_data, new_source
+                    st.success("Dataset cargado.")
+                else:
+                    st.warning("No hay data.json subido.")
+            if col_reset.button("Recargar data local", use_container_width=True):
+                load_dataset.clear()
+                new_data, new_source = load_dataset(None)
+                st.session_state["active_dataset"] = new_data
+                st.session_state["data_source_label"] = new_source
+                dataset, source_label = new_data, new_source
+                st.success("Dataset recargado.")
+
+        if refresh_btn:
+            with st.spinner("Actualizando listas (ligero)..."):
+                live_data = _scrape_live(limit_upcoming=40, limit_finished=40)
+            st.session_state["active_dataset"] = live_data
+            st.session_state["data_source_label"] = "Scrape en vivo (ligero)"
+            dataset, source_label = live_data, "Scrape en vivo (ligero)"
+            st.success("Listas actualizadas.")
 
     all_matches = dataset["upcoming_matches"] + dataset["finished_matches"]
 
@@ -501,14 +596,13 @@ def main() -> None:
         matches = _sort_matches(matches)
         st.markdown(f"<p class='section-subtle'>Mostrando {len(matches)} partidos</p>", unsafe_allow_html=True)
 
-        selected_match_id: Optional[str] = st.session_state.get("selected_match_id")
         options_ids = [m["id"] for m in matches]
         match_lookup = {m["id"]: m for m in matches}
+        default_index = 0
+        if selected_match_id_state in options_ids:
+            default_index = options_ids.index(selected_match_id_state)
 
         if options_ids:
-            default_index = 0
-            if selected_match_id in options_ids:
-                default_index = options_ids.index(selected_match_id)
             selected_match_id = st.radio(
                 "Partidos",
                 options=options_ids,
@@ -523,22 +617,32 @@ def main() -> None:
             selected_match_id = None
 
     with panel_col:
-        selected_match = _find_match_by_id(all_matches, selected_match_id)
+        # Determinar si se debe cargar preview
+        if preview_btn and selected_match_id_state:
+            st.session_state["active_preview_match_id"] = selected_match_id_state
+            active_preview_id = selected_match_id_state
+        elif preview_btn and not selected_match_id_state:
+            st.warning("Elige un partido antes de pedir la vista previa.")
+
+        selected_match = _find_match_by_id(all_matches, active_preview_id)
         analysis_data = None
         analysis_source = "Sin analisis cacheado"
 
-        if upload_preview:
+        if uploaded_preview_bytes:
             try:
-                analysis_data = json.loads(upload_preview.read())
+                analysis_data = json.loads(uploaded_preview_bytes.decode("utf-8"))
                 analysis_source = "JSON subido"
             except Exception:
                 st.warning("No se pudo leer el JSON de analisis subido.")
-        if not analysis_data and selected_match_id:
-            analysis_data = _load_cached_preview(selected_match_id)
+        if not analysis_data and active_preview_id:
+            analysis_data = _load_cached_preview(active_preview_id)
             if analysis_data:
                 analysis_source = "Cache local"
 
-        render_analysis_panel(selected_match, analysis_data, analysis_source)
+        if not active_preview_id:
+            st.info("Selecciona un partido y pulsa 'Vista previa rapida' para mostrar el panel de reference_code.")
+        else:
+            render_analysis_panel(selected_match, analysis_data, analysis_source)
 
 
 if __name__ == "__main__":
