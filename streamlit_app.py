@@ -527,11 +527,13 @@ def main() -> None:
 
     # Controles de accion principales
     with actions_col:
-        c1, c2 = st.columns(2, gap="small")
+        c1, c2, c3 = st.columns(3, gap="small")
         with c1:
             preview_btn = st.button("Vista previa rapida", use_container_width=True, key="btn_preview")
         with c2:
             refresh_btn = st.button("Actualizar datos", use_container_width=True, key="btn_refresh")
+        with c3:
+            live_btn = st.button("Analizar (reference_code)", use_container_width=True, key="btn_live")
 
         uploaded_dataset_bytes: Optional[bytes] = None
         uploaded_preview_bytes: Optional[bytes] = None
@@ -570,6 +572,13 @@ def main() -> None:
             st.session_state["data_source_label"] = "Scrape en vivo (ligero)"
             dataset, source_label = live_data, "Scrape en vivo (ligero)"
             st.success("Listas actualizadas.")
+
+        if live_btn and not selected_match_id_state:
+            st.warning("Selecciona un partido antes de ejecutar reference_code.")
+        if live_btn and selected_match_id_state:
+            st.session_state["active_preview_match_id"] = selected_match_id_state
+            st.session_state["live_analysis_match_id"] = selected_match_id_state
+            st.session_state["live_analysis_payload"] = None
 
     all_matches = dataset["upcoming_matches"] + dataset["finished_matches"]
 
@@ -624,11 +633,34 @@ def main() -> None:
         elif preview_btn and not selected_match_id_state:
             st.warning("Elige un partido antes de pedir la vista previa.")
 
+        live_payload: Optional[Dict[str, Any]] = None
+        if live_btn and selected_match_id_state:
+            st.session_state["active_preview_match_id"] = selected_match_id_state
+            active_preview_id = selected_match_id_state
+            if analizar_partido_completo is None:
+                st.error("reference_code requiere navegador/driver. En Render gratis no hay browser; usa previews cacheados o sube JSON.")
+            else:
+                with st.spinner("Ejecutando reference_code (puede fallar si no hay navegador disponible)..."):
+                    try:
+                        live_payload = analizar_partido_completo(selected_match_id_state)
+                        st.session_state["live_analysis_payload"] = live_payload
+                        st.session_state["live_analysis_match_id"] = selected_match_id_state
+                        st.success("Analisis generado con reference_code.")
+                    except Exception as exc:
+                        st.error(f"reference_code fallo: {exc}")
+
+        # Reutilizar payload en memoria si corresponde al ID activo
+        if st.session_state.get("live_analysis_match_id") == active_preview_id:
+            live_payload = st.session_state.get("live_analysis_payload")
+
         selected_match = _find_match_by_id(all_matches, active_preview_id)
         analysis_data = None
         analysis_source = "Sin analisis cacheado"
 
-        if uploaded_preview_bytes:
+        if live_payload:
+            analysis_data = live_payload
+            analysis_source = "reference_code (en vivo)"
+        elif uploaded_preview_bytes:
             try:
                 analysis_data = json.loads(uploaded_preview_bytes.decode("utf-8"))
                 analysis_source = "JSON subido"
