@@ -1,743 +1,360 @@
+{% set active_section = page_mode or 'upcoming' %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App de Análisis de Datos y Herramientas ⚽</title>
+    <title>{{ page_title|default('Partidos', true) }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --sidebar-width: 360px;
-            --card-bg: #ffffff;
-            --card-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-        }
-        body {
-            background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #1f2a37;
-            min-height: 100vh;
-        }
-        .layout {
-            display: flex;
-            gap: 1.5rem;
-            align-items: flex-start;
-            padding: 1.5rem;
-        }
+        body { background-color:#f5f6fb; font-family:'Inter',system-ui,'Segoe UI',sans-serif; color:#1f2330; }
+        .app-shell { display:flex; min-height:100vh; }
         .sidebar {
-            width: var(--sidebar-width);
-            position: sticky;
-            top: 1.5rem;
-            align-self: flex-start;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
+            width:360px;
+            background:#fff;
+            border-right:1px solid #e3e6ef;
+            padding:24px;
+            height:100vh;
+            overflow-y:auto;
+            position:sticky;
+            top:0;
         }
-        .content {
-            flex: 1;
-            min-width: 0;
-        }
-        .sidebar-card {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 1.25rem 1.5rem;
-            box-shadow: var(--card-shadow);
-        }
-        .sidebar-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.75rem;
-        }
-        .tool-option {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.45rem 0.65rem;
-            border-radius: 12px;
-            cursor: pointer;
-        }
-        .tool-option input {
-            accent-color: #ff4d4f;
-        }
-        .tool-option .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        .status-dot.entreno { background-color: #ff4d4f; }
-        .status-dot.analisis { background-color: #0dcaf0; }
-        .analysis-status {
-            font-size: 0.85rem;
-            margin-top: 0.8rem;
-            padding: 0.6rem 0.75rem;
-            border-radius: 10px;
-            background: #f1f5f9;
-            color: #475569;
-        }
-        .analysis-status[data-state="loading"] { background: #fff4e6; color: #b45309; }
-        .analysis-status[data-state="success"] { background: #ecfdf5; color: #047857; }
-        .analysis-status[data-state="error"] { background: #fee2e2; color: #b91c1c; }
-        .analysis-status[data-state="warning"] { background: #fef3c7; color: #92400e; }
-        .sidebar-table-wrapper {
-            max-height: 360px;
-            overflow: auto;
-        }
-        .sidebar-table {
-            font-size: 0.85rem;
-        }
-        .sidebar-table thead th {
-            font-weight: 600;
-            color: #475569;
-            border-bottom-width: 1px;
-        }
-        .sidebar-table tbody tr {
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-        .sidebar-table tbody tr.active {
-            background-color: #eef2ff;
-            border-left: 4px solid #6366f1;
-        }
-        .team-name {
-            font-weight: 600;
-        }
-        .odds-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 999px;
-        }
-        .handicap-badge {
-            background: #f87171;
-            color: #fff;
-        }
-        .goal-badge {
-            background: #34d399;
-            color: #fff;
-        }
-        .icon-button {
-            border: none;
-            background: transparent;
-            color: #0d6efd;
-            font-size: 1rem;
-        }
-        #analysis-panel-wrapper {
-            background: var(--card-bg);
-            border-radius: 24px;
-            padding: 1.5rem;
-            box-shadow: var(--card-shadow);
-            min-height: 400px;
-        }
-        .analysis-panel .main-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #0f172a;
-        }
-        .analysis-panel .sub-title {
-            font-size: 1.3rem;
-            color: #475569;
-        }
-        .home-color { color: #2563eb; font-weight: 700; }
-        .away-color { color: #f97316; font-weight: 700; }
-        .vs-label {
-            font-size: 0.85rem;
-            color: #94a3b8;
-            margin: 0 0.35rem;
-        }
-        .panel-loading {
-            text-align: center;
-            padding: 3rem 1rem;
-            font-size: 1rem;
-            color: #475569;
-        }
-        .panel-loading.error { color: #b91c1c; }
-        .preview-container {
-            border: 1px dashed #c7d2fe;
-            border-radius: 16px;
-            padding: 1rem;
-            background: #f8f9ff;
-        }
-        .preview-loading {
-            text-align: center;
-            font-style: italic;
-            color: #64748b;
-        }
-        .quick-preview h5 { font-weight: 700; }
-        .advanced-container {
-            min-height: 60px;
-        }
+        .detail-panel { flex:1; padding:32px; overflow-y:auto; }
+        .view-switch { display:flex; gap:10px; margin-bottom:16px; }
+        .view-toggle { flex:1; border:1px solid #d5dbf8; border-radius:999px; background:#f5f8ff; font-weight:600; padding:8px 14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all .2s; }
+        .view-toggle.active { background:#4c6ef5; color:#fff; border-color:#4c6ef5; }
+        .view-toggle .badge { background:rgba(255,255,255,0.2); }
+        .filters-form label { font-size:0.85rem; font-weight:600; }
+        .match-lists { margin-top:24px; }
+        .match-list { display:none; }
+        .match-list.is-active { display:block; }
+        .match-card { border:1px solid #e3e6ef; border-left:4px solid #c7d7ff; border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#fff; transition:border-color .2s, background .2s; cursor:pointer; }
+        .match-card.is-active { border-color:#4c6ef5; background:#f5f8ff; }
+        .match-card .match-time { font-size:0.85rem; color:#64708a; margin-bottom:4px; }
+        .match-card .competition { font-size:0.8rem; color:#8a94af; margin-bottom:6px; }
+        .match-card .badge { font-size:0.75rem; border-radius:999px; padding:4px 10px; }
+        .home-color { color:#2563eb; font-weight:700; }
+        .away-color { color:#f97316; font-weight:700; }
+        .score-value { font-weight:700; color:#16a34a; }
+        .ah-value { font-weight:600; color:#6f42c1; }
+        .data-highlight { color:#dc2626; font-weight:600; }
+        .badge-handicap { background:#edf2ff; color:#3b5bdb; }
+        .badge-goal { background:#e6fcf5; color:#099268; }
+        .score-pill { font-weight:700; color:#198754; }
+        .match-card-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .match-actions { display:flex; gap:8px; }
+        .match-action { border:none; background:#eff1fb; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; }
+        .match-action:hover { background:#4c6ef5; color:#fff; }
+        .detail-panel-content { max-width:1000px; margin:0 auto; }
+        .panel-card { background:#fff; border:1px solid #e3e6ef; border-radius:16px; padding:24px; box-shadow:0 6px 20px rgba(15,23,42,0.06); }
+        .panel-analysis { margin-top:24px; }
+        .panel-placeholder { text-align:center; padding:60px 20px; border:1px dashed #ced4f2; border-radius:12px; background:#fff; }
+        .panel-loading { display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600; }
         @media (max-width: 992px) {
-            .layout {
-                flex-direction: column;
-            }
+            .app-shell { flex-direction:column; }
             .sidebar {
-                width: 100%;
-                position: static;
+                width:100%;
+                border-right:none;
+                border-bottom:1px solid #e3e6ef;
+                position:static;
+                height:auto;
+                max-height:none;
             }
         }
     </style>
 </head>
 <body>
-    <div class="layout">
+    <div class="app-shell" data-active-list="{{ active_section }}">
         <aside class="sidebar">
-            <div class="sidebar-card">
-                <div class="sidebar-card-header">
-                    <h5 class="mb-0">Herramientas disponibles</h5>
-                    <span class="badge bg-primary">Live</span>
+            <div class="sidebar-header">
+                <h1 class="mb-2">{{ page_title|default('Partidos', true) }}</h1>
+                <p class="text-muted">Selecciona un partido y usa los íconos 👁 (vista rápida) o 📈 (análisis completo) sin salir de esta página.</p>
+                <div class="view-switch">
+                    <button type="button" class="view-toggle {% if active_section != 'finished' %}active{% endif %}" data-target="upcoming">
+                        Próximos
+                        <span class="badge">{{ upcoming_matches|length if upcoming_matches else 0 }}</span>
+                    </button>
+                    <button type="button" class="view-toggle {% if active_section == 'finished' %}active{% endif %}" data-target="finished">
+                        Finalizados
+                        <span class="badge">{{ finished_matches|length if finished_matches else 0 }}</span>
+                    </button>
                 </div>
-                <div class="tool-option">
-                    <span class="status-dot entreno"></span>
-                    <input type="radio" id="tool-entreno" name="tool-mode" value="entreno" checked>
-                    <label for="tool-entreno" class="mb-0">Entreno</label>
-                </div>
-                <div class="tool-option">
-                    <span class="status-dot analisis"></span>
-                    <input type="radio" id="tool-analisis" name="tool-mode" value="analisis">
-                    <label for="tool-analisis" class="mb-0">Análisis</label>
-                </div>
-            </div>
-
-            <div class="sidebar-card">
-                <div class="sidebar-card-header">
-                    <h5 class="mb-0">Configuración del Partido (OF)</h5>
-                </div>
-                <form id="match-search-form" class="d-flex flex-column gap-3">
-                    <div>
-                        <label for="match-id-input" class="form-label fw-semibold">ID Partido Principal</label>
-                        <input type="text" class="form-control" id="match-id-input" placeholder="Ej: 2898733" value="{{ selected_match_id }}">
+                <form class="filters-form" method="get">
+                    <div class="mb-2">
+                        <label for="handicap-filter" class="form-label">Filtro por hándicap</label>
+                        <input list="handicap-options" type="text" class="form-control form-control-sm" id="handicap-filter" name="handicap" value="{{ handicap_filter|default('', true) }}" placeholder="Ej: 0, 0.25, 1">
+                        <datalist id="handicap-options">
+                            {% for opt in handicap_options %}
+                            <option value="{{ opt }}"></option>
+                            {% endfor %}
+                        </datalist>
                     </div>
-                    <button type="submit" class="btn btn-danger w-100">Analizar Partido (OF)</button>
+                    <div class="mb-3">
+                        <label for="goal-line-filter" class="form-label">Filtro por línea de goles</label>
+                        <input list="goal-line-options" type="text" class="form-control form-control-sm" id="goal-line-filter" name="ou" value="{{ goal_line_filter|default('', true) }}" placeholder="Ej: 2.25, 2.5">
+                        <datalist id="goal-line-options">
+                            {% for opt in goal_line_options %}
+                            <option value="{{ opt }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">Aplicar filtros</button>
+                        <a class="btn btn-outline-secondary btn-sm w-100" href="{{ request.path }}">Limpiar</a>
+                    </div>
                 </form>
-                <div class="analysis-status mt-3" id="analysis-status" data-state="idle">
-                    Listo para analizar un nuevo encuentro.
-                </div>
+                {% if error %}
+                <div class="alert alert-warning mt-3 py-2 px-3">{{ error }}</div>
+                {% endif %}
             </div>
-
-            <div class="sidebar-card">
-                <div class="sidebar-card-header">
-                    <h6 class="mb-0">Próximos partidos</h6>
-                    <span class="badge bg-success">{{ upcoming_matches|length }}</span>
+            <div class="match-lists mt-3">
+                <div class="match-list {% if active_section != 'finished' %}is-active{% endif %}" data-list="upcoming">
+                    {% if upcoming_matches %}
+                        {% for match in upcoming_matches %}
+                            {% set card_id = match.id or match.match_id %}
+                            {% if card_id %}
+                                {% set competition = match.competition or match.league or match.league_name %}
+                                {% set goal_value = match.goal_line or match.goal_line_alt or match.goal_line_decimal %}
+                                <div class="match-card" data-match-id="{{ card_id }}" data-section="upcoming">
+                                    <div class="match-time">{{ match.time or '-' }}</div>
+                                    <div class="teams">{{ match.home_team or match.homeName }} vs {{ match.away_team or match.awayName }}</div>
+                                    {% if competition %}<div class="competition">{{ competition }}</div>{% endif %}
+                                    <div class="match-card-meta">
+                                        <div class="odds">
+                                            {% if match.handicap %}<span class="badge badge-handicap">AH {{ match.handicap }}</span>{% endif %}
+                                            {% if goal_value %}<span class="badge badge-goal">O/U {{ goal_value }}</span>{% endif %}
+                                        </div>
+                                        <div class="match-actions">
+                                            <button type="button" class="match-action" data-action="preview" aria-label="Vista rápida"><i class="fa-solid fa-eye"></i></button>
+                                            <button type="button" class="match-action" data-action="analysis" aria-label="Análisis completo"><i class="fa-solid fa-chart-line"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small mb-0">No hay partidos próximos disponibles.</p>
+                    {% endif %}
                 </div>
-                <div class="sidebar-table-wrapper">
-                    <table class="table table-sm align-middle sidebar-table">
-                        <thead>
-                            <tr>
-                                <th>Hora</th>
-                                <th>Partido</th>
-                                <th>AH</th>
-                                <th>O/U</th>
-                                <th class="text-center">Análisis</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for match in upcoming_matches %}
-                            <tr data-match-id="{{ match.id }}" class="{% if match.id == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match.time }}</td>
-                                <td>
-                                    <span class="team-name">{{ match.home_team }}</span>
-                                    <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match.away_team }}</span>
-                                </td>
-                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-' }}</span></td>
-                                <td class="text-center">
-                                    <button type="button" class="icon-button sidebar-analyze-btn" data-match-id="{{ match.id }}" title="Ver análisis en el panel">
-                                        <i class="fa-solid fa-chart-simple"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No hay partidos próximos disponibles.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="sidebar-card">
-                <div class="sidebar-card-header">
-                    <h6 class="mb-0">Partidos terminados</h6>
-                    <span class="badge bg-secondary">{{ finished_matches|length }}</span>
-                </div>
-                <div class="sidebar-table-wrapper">
-                    <table class="table table-sm align-middle sidebar-table">
-                        <thead>
-                            <tr>
-                                <th>Hora</th>
-                                <th>Partido</th>
-                                <th>Res.</th>
-                                <th>AH</th>
-                                <th>O/U</th>
-                                <th class="text-center">Análisis</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for match in finished_matches %}
-                            <tr data-match-id="{{ match.id }}" class="{% if match.id == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match.time }}</td>
-                                <td>
-                                    <span class="team-name">{{ match.home_team }}</span>
-                                    <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match.away_team }}</span>
-                                </td>
-                                <td class="text-center"><span class="badge bg-dark">{{ match.score or '-' }}</span></td>
-                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-' }}</span></td>
-                                <td class="text-center">
-                                    <button type="button" class="icon-button sidebar-analyze-btn" data-match-id="{{ match.id }}" title="Ver análisis en el panel">
-                                        <i class="fa-solid fa-chart-simple"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Todavía no se han registrado partidos terminados.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="match-list {% if active_section == 'finished' %}is-active{% endif %}" data-list="finished">
+                    {% if finished_matches %}
+                        {% for match in finished_matches %}
+                            {% set card_id = match.id or match.match_id %}
+                            {% if card_id %}
+                                {% set competition = match.competition or match.league or match.league_name %}
+                                {% set goal_value = match.goal_line or match.goal_line_alt or match.goal_line_decimal %}
+                                <div class="match-card" data-match-id="{{ card_id }}" data-section="finished">
+                                    <div class="match-time">{{ match.time or '-' }}</div>
+                                    <div class="teams">{{ match.home_team or match.homeName }} vs {{ match.away_team or match.awayName }}</div>
+                                    {% if match.score %}<div class="score-pill">{{ match.score }}</div>{% endif %}
+                                    {% if competition %}<div class="competition">{{ competition }}</div>{% endif %}
+                                    <div class="match-card-meta">
+                                        <div class="odds">
+                                            {% if match.handicap %}<span class="badge badge-handicap">AH {{ match.handicap }}</span>{% endif %}
+                                            {% if goal_value %}<span class="badge badge-goal">O/U {{ goal_value }}</span>{% endif %}
+                                        </div>
+                                        <div class="match-actions">
+                                            <button type="button" class="match-action" data-action="preview" aria-label="Vista rápida"><i class="fa-solid fa-eye"></i></button>
+                                            <button type="button" class="match-action" data-action="analysis" aria-label="Análisis completo"><i class="fa-solid fa-chart-line"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small mb-0">No hay partidos finalizados con los filtros actuales.</p>
+                    {% endif %}
                 </div>
             </div>
         </aside>
-
-        <main class="content">
-            <div id="analysis-panel-wrapper" data-current-match="{{ selected_match_id }}">
-                {% include 'partials/analysis_panel.html' %}
+        <main class="detail-panel">
+            <div id="detail-panel-content" class="detail-panel-content">
+                <div class="panel-placeholder">
+                    <h2>Selecciona un partido</h2>
+                    <p>Haz clic en un partido y usa 👁 o 📈 para ver la información aquí mismo.</p>
+                </div>
             </div>
         </main>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const TOOL_KEY = 'analysis-tool-mode';
-            const toolRadios = document.querySelectorAll('input[name="tool-mode"]');
-            const panelWrapper = document.getElementById('analysis-panel-wrapper');
-            const matchForm = document.getElementById('match-search-form');
-            const matchInput = document.getElementById('match-id-input');
-            const statusBox = document.getElementById('analysis-status');
-            const sidebarRows = document.querySelectorAll('.sidebar-table tbody tr[data-match-id]');
-            const sidebarButtons = document.querySelectorAll('.sidebar-analyze-btn');
+        (function () {
+            const shell = document.querySelector('.app-shell');
+            const detailPanel = document.getElementById('detail-panel-content');
+            if (!shell || !detailPanel) return;
 
-            let activeMatchId = panelWrapper.dataset.currentMatch || '';
-            let currentController = null;
-
-            const savedTool = localStorage.getItem(TOOL_KEY);
-            if (savedTool) {
-                const radio = document.querySelector(`input[name="tool-mode"][value="${savedTool}"]`);
-                if (radio) radio.checked = true;
-            }
-            toolRadios.forEach(radio => {
-                radio.addEventListener('change', () => localStorage.setItem(TOOL_KEY, radio.value));
-            });
-
-            const normalizeMatchId = (value) => {
-                if (!value) return '';
-                const digits = value.toString().match(/\d+/g);
-                return digits ? digits.join('') : '';
+            const state = {
+                activeList: shell.dataset.activeList || 'upcoming',
+                activeMatch: null
             };
 
-            const updateStatus = (message, state = 'idle') => {
-                statusBox.textContent = message;
-                statusBox.dataset.state = state;
+            const setDetailContent = (html) => {
+                detailPanel.innerHTML = html;
+                detailPanel.scrollTop = 0;
             };
 
-            const highlightRow = (matchId) => {
-                sidebarRows.forEach(row => {
-                    if (row.dataset.matchId === matchId) {
-                        row.classList.add('active');
-                    } else {
-                        row.classList.remove('active');
-                    }
-                });
+            const showPlaceholder = (message) => {
+                setDetailContent(`<div class="panel-placeholder"><p class="mb-0">${message}</p></div>`);
             };
-
-            const loadMatch = async (matchId, options = {}) => {
-                const cleanId = normalizeMatchId(matchId);
-                if (!cleanId) {
-                    updateStatus('Introduce un ID de partido válido.', 'error');
-                    return;
-                }
-                if (!options.force && cleanId === activeMatchId) {
-                    updateStatus('Ese partido ya está en pantalla.', 'idle');
-                    return;
-                }
-
-                if (currentController) currentController.abort();
-                currentController = new AbortController();
-                activeMatchId = cleanId;
-                highlightRow(cleanId);
-                updateStatus('Analizando partido...', 'loading');
-                panelWrapper.innerHTML = `<div class="panel-loading">Analizando ID ${cleanId}...</div>`;
-
-                try {
-                    const response = await fetch(`/api/estudio_panel/${cleanId}`, { signal: currentController.signal });
-                    const payload = await response.json().catch(() => ({}));
-                    if (!response.ok || payload.error) {
-                        throw new Error(payload.error || 'No se pudo cargar el análisis.');
-                    }
-                    panelWrapper.innerHTML = payload.html;
-                    panelWrapper.dataset.currentMatch = cleanId;
-                    matchInput.value = cleanId;
-                    const elapsed = payload.meta?.elapsed ? Number(payload.meta.elapsed).toFixed(2) : '0.0';
-                    updateStatus(`Análisis completado en ${elapsed} segundos.`, 'success');
-                    if (window.history && window.history.replaceState) {
-                        window.history.replaceState({}, '', `/estudio/${cleanId}`);
-                    }
-                    attachAnalysisEvents();
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        updateStatus('Análisis cancelado.', 'warning');
-                    } else {
-                        console.error(error);
-                        panelWrapper.innerHTML = '<div class="panel-loading error">Error al cargar el análisis.</div>';
-                        updateStatus(error.message || 'Error al analizar el partido.', 'error');
-                    }
-                }
-            };
-
-            matchForm.addEventListener('submit', event => {
-                event.preventDefault();
-                loadMatch(matchInput.value);
-            });
-
-            sidebarButtons.forEach(button => {
-                button.addEventListener('click', event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    loadMatch(button.dataset.matchId);
-                });
-            });
-
-            sidebarRows.forEach(row => {
-                row.addEventListener('click', () => loadMatch(row.dataset.matchId));
-            });
 
             const formatCoverStatus = (status) => {
-                if (!status) return '';
-                if (status === 'CUBIERTO') return '<span class="text-success fw-bold">CUBIERTO</span>';
-                if (status === 'NO CUBIERTO') return '<span class="text-danger fw-bold">NO CUBIERTO</span>';
-                if (status === 'NULO' || status === 'PUSH') return '<span class="text-muted">PUSH</span>';
-                return `<span class="text-muted">${status}</span>`;
+                const map = { 'CUBIERTO': '✅ Cubierto', 'NO CUBIERTO': '❌ No cubierto', 'PUSH': '➖ Push' };
+                return map[status] || status || '';
             };
 
-            const renderCoverLine = (status) => {
-                const formatted = formatCoverStatus(status);
-                return formatted ? `<p class="mb-1"><strong>Estado:</strong> ${formatted}</p>` : '';
-            };
-
-            const renderStatsTable = (rows) => {
-                if (!rows || !rows.length) return '';
-                const mapped = rows.map(r => `
-                    <tr>
-                        <td class="text-start fw-semibold">${r.home ?? ''}</td>
-                        <td class="text-center text-muted">${r.label ?? ''}</td>
-                        <td class="text-end fw-semibold">${r.away ?? ''}</td>
-                    </tr>`).join('');
-                return `<table class="table table-sm stat-table mb-0"><tbody>${mapped}</tbody></table>`;
-            };
-
-            const formatDisplayTime = (data) => {
-                if (data.time) return data.time;
-                if (data.time_obj) {
-                    const parsed = new Date(data.time_obj);
-                    if (!Number.isNaN(parsed.getTime())) {
-                        return parsed.toLocaleString('es-ES', { hour12: false });
+            const formatDisplayTime = (value) => {
+                if (!value) return '-';
+                if (typeof value === 'string' && value.trim()) return value;
+                try {
+                    const date = new Date(value);
+                    if (!Number.isNaN(date.getTime())) {
+                        return date.toLocaleString('es-ES', { hour12: false });
                     }
+                } catch (err) {
+                    return '-';
                 }
                 return '-';
             };
 
             const renderQuickPreview = (data) => {
-                const displayTime = formatDisplayTime(data);
-                const scoreHtml = data.score ? `<p class="mb-1"><strong>Resultado:</strong> ${data.score}</p>` : '';
-                const handicap = data.handicap ? `<span class="odds-badge handicap-badge me-2">AH ${data.handicap}</span>` : '';
                 const goalLineValue = data.goal_line || data.goal_line_alt || data.goal_line_decimal;
-                const goalLine = goalLineValue ? `<span class="odds-badge goal-badge">O/U ${goalLineValue}</span>` : '';
-                const competition = data.competition ? `<p class="mb-1 text-muted"><small>${data.competition}</small></p>` : '';
+                const handicap = data.handicap ? `<span class="badge badge-handicap me-2">AH ${data.handicap}</span>` : '';
+                const goalLine = goalLineValue ? `<span class="badge badge-goal">O/U ${goalLineValue}</span>` : '';
                 const statusLabel = data.section === 'finished_matches' ? 'Partido finalizado' : 'Próximo partido';
+                const score = data.score ? `<p class="mb-1"><strong>Resultado:</strong> ${data.score}</p>` : '';
+                const cover = data.cover_status ? `<p class="mb-1"><strong>Estado:</strong> ${formatCoverStatus(data.cover_status)}</p>` : '';
 
                 return `
-                    <div class="quick-preview">
-                        <p class="mb-1 text-uppercase text-muted"><small>${statusLabel}</small></p>
-                        <h5 class="mb-2"><span class="home-color">${data.home_team || '-'}</span> vs <span class="away-color">${data.away_team || '-'}</span></h5>
-                        ${competition}
-                        <p class="mb-1"><strong>Hora:</strong> ${displayTime}</p>
-                        ${scoreHtml}
-                        <div class="mb-2">${handicap}${goalLine}</div>
-                        <p class="text-muted mb-2"><small>Pulsa "Ver análisis avanzado" para cargar comparativas y métricas detalladas.</small></p>
-                        <button type="button" class="btn btn-outline-primary btn-sm load-advanced-btn" data-match-id="${data.id}">
-                            Ver análisis avanzado
-                        </button>
-                        <div class="advanced-container mt-3"></div>
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h2>${data.home_team || '-'} vs ${data.away_team || '-'}</h2>
+                            <p class="text-muted mb-1">${data.competition || ''}</p>
+                            <p class="text-muted small">${statusLabel} • ${formatDisplayTime(data.time || data.time_obj)}</p>
+                        </div>
+                        <div class="panel-analysis">
+                            ${score}
+                            <div class="mb-2">${handicap}${goalLine}</div>
+                            ${cover}
+                            <p class="text-muted mb-0"><small>Haz clic en 📈 para ver el panel avanzado.</small></p>
+                        </div>
                     </div>
                 `;
             };
 
-            const ensureQuickPreview = (matchId, container) => {
-                const previewContainer = container || document.getElementById('analysis-preview-container');
-                if (!previewContainer) return;
-                const status = previewContainer.getAttribute('data-quick-loaded');
-                if (status === 'true' || status === 'loading') return;
-                previewContainer.setAttribute('data-quick-loaded', 'loading');
-                previewContainer.innerHTML = '<div class="preview-loading">Preparando vista previa rápida...</div>';
-
-                fetch(`/api/preview_basico/${matchId}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('No se encontró información rápida para este partido.');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        previewContainer.setAttribute('data-quick-loaded', 'true');
-                        previewContainer.innerHTML = renderQuickPreview(data);
-                    })
-                    .catch(error => {
-                        console.error('Error al cargar la vista rápida:', error);
-                        previewContainer.removeAttribute('data-quick-loaded');
-                        previewContainer.innerHTML = `<div class="preview-loading">Error: ${error.message || 'No se pudo cargar la vista previa rápida.'}</div>`;
-                    });
+            const renderAnalysis = (payload) => {
+                const elapsed = payload.meta && typeof payload.meta.elapsed !== 'undefined'
+                    ? `Generado en ${payload.meta.elapsed}s`
+                    : '';
+                const score = payload.match && payload.match.score ? `<p class="score-pill">${payload.match.score}</p>` : '';
+                return `
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h2>${(payload.match && payload.match.home) || '-'} vs ${(payload.match && payload.match.away) || '-'}</h2>
+                            <p class="text-muted mb-1">${(payload.match && payload.match.time) || ''}</p>
+                            ${score}
+                            <p class="text-muted small mb-0">${elapsed}</p>
+                        </div>
+                        <div class="panel-analysis">
+                            ${payload.html || '<p class="text-muted">No se pudo generar el análisis.</p>'}
+                        </div>
+                    </div>
+                `;
             };
 
-            const loadAdvancedAnalysis = (matchId, triggerBtn, container) => {
-                const previewContainer = container || document.getElementById('analysis-preview-container');
-                if (!previewContainer) return;
-                const advancedContainer = previewContainer.querySelector('.advanced-container');
-                if (!advancedContainer) return;
-                const status = advancedContainer.getAttribute('data-advanced-loaded');
-                if (status === 'true' || status === 'loading') return;
+            const setActiveCard = (matchId) => {
+                state.activeMatch = matchId;
+                document.querySelectorAll('.match-card').forEach((card) => {
+                    card.classList.toggle('is-active', card.dataset.matchId === matchId);
+                });
+            };
 
-                advancedContainer.setAttribute('data-advanced-loaded', 'loading');
-                advancedContainer.innerHTML = '<div class="preview-loading">Cargando análisis completo...</div>';
-                if (triggerBtn) {
-                    triggerBtn.disabled = true;
-                    triggerBtn.textContent = 'Cargando...';
+            const loadQuickPreview = (matchId, section) => {
+                setDetailContent('<div class="panel-placeholder"><div class="panel-loading"><span class="spinner-border spinner-border-sm"></span> Preparando vista previa...</div></div>');
+                fetch(`/api/preview_basico/${matchId}`)
+                    .then((response) => {
+                        if (!response.ok) throw new Error('No se encontró información rápida para este partido.');
+                        return response.json();
+                    })
+                    .then((data) => {
+                        data.section = section === 'finished' ? 'finished_matches' : 'upcoming_matches';
+                        setDetailContent(renderQuickPreview(data));
+                    })
+                    .catch((error) => showPlaceholder(error.message || 'No se pudo cargar la vista previa.'));
+            };
+
+            const loadFullAnalysis = (matchId) => {
+                setDetailContent('<div class="panel-placeholder"><div class="panel-loading"><span class="spinner-border spinner-border-sm"></span> Generando análisis completo...</div></div>');
+                fetch(`/api/estudio_panel/${matchId}`)
+                    .then((response) => {
+                        if (!response.ok) throw new Error('No se pudo renderizar el análisis.');
+                        return response.json();
+                    })
+                    .then((payload) => {
+                        if (payload.error) throw new Error(payload.error);
+                        setDetailContent(renderAnalysis(payload));
+                    })
+                    .catch((error) => showPlaceholder(error.message || 'No se pudo cargar el análisis.'));
+            };
+
+            const autoSelectFirstCard = (listName) => {
+                const list = document.querySelector(`.match-list[data-list="${listName}"]`);
+                if (!list) return;
+                const firstCard = list.querySelector('.match-card');
+                if (!firstCard) {
+                    showPlaceholder('No hay partidos disponibles para esta vista.');
+                    state.activeMatch = null;
+                    return;
+                }
+                const matchId = firstCard.dataset.matchId;
+                setActiveCard(matchId);
+                loadQuickPreview(matchId, listName);
+            };
+
+            const switchList = (target) => {
+                if (!target || target === state.activeList) return;
+                state.activeList = target;
+                document.querySelectorAll('.view-toggle').forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.target === target);
+                });
+                document.querySelectorAll('.match-list').forEach((list) => {
+                    list.classList.toggle('is-active', list.dataset.list === target);
+                });
+                autoSelectFirstCard(target);
+            };
+
+            document.addEventListener('click', (event) => {
+                const toggleBtn = event.target.closest('.view-toggle');
+                if (toggleBtn) {
+                    switchList(toggleBtn.dataset.target);
+                    return;
                 }
 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
-                const cacheUrl = `/static/cached_previews/${matchId}.json?ts=${Date.now()}`;
+                const actionBtn = event.target.closest('.match-action');
+                if (actionBtn) {
+                    const card = actionBtn.closest('.match-card');
+                    if (!card) return;
+                    const matchId = card.dataset.matchId;
+                    const section = card.dataset.section;
+                    setActiveCard(matchId);
+                    if (actionBtn.dataset.action === 'analysis') {
+                        loadFullAnalysis(matchId);
+                    } else {
+                        loadQuickPreview(matchId, section);
+                    }
+                    return;
+                }
 
-                const fetchAdvanced = () => fetch(`/api/analisis/${matchId}`, { signal: controller.signal });
-
-                const analysisPromise = fetch(cacheUrl, { signal: controller.signal, cache: 'no-store' })
-                    .then(response => {
-                        if (!response.ok) {
-                            if (response.status !== 404) {
-                                console.warn(`Cache de analisis devolvió ${response.status} para ${matchId}`);
-                            }
-                            throw new Error('CACHE_MISS');
-                        }
-                        return response.json();
-                    })
-                    .catch(error => {
-                        if (error.name === 'AbortError') {
-                            throw error;
-                        }
-                        return fetchAdvanced()
-                            .then(response => {
-                                if (!response.ok) {
-                                    return response.json()
-                                        .catch(() => ({ error: 'No se pudo obtener el análisis.' }))
-                                        .then(payload => { throw { isApiError: true, payload }; });
-                                }
-                                return response.json();
-                            });
-                    });
-
-                analysisPromise
-                    .then(data => {
-                        clearTimeout(timeoutId);
-                        if (data.error) {
-                            advancedContainer.innerHTML = `<div class="preview-loading">Error: ${data.error}</div>`;
-                            advancedContainer.removeAttribute('data-advanced-loaded');
-                            if (triggerBtn) {
-                                triggerBtn.disabled = false;
-                                triggerBtn.textContent = 'Ver análisis avanzado';
-                            }
-                            return;
-                        }
-                        advancedContainer.setAttribute('data-advanced-loaded', 'true');
-
-                        let finalScoreHtml = '';
-                        if (data.final_score) {
-                            finalScoreHtml = `<div class="text-center mb-3"><h4>Resultado Final: <span class="badge bg-primary">${data.final_score}</span></h4></div>`;
-                        }
-
-                        let rendimientoHtml = '';
-                        const ri = data.recent_indirect_full || {};
-                        if (ri.last_home || ri.last_away || ri.h2h_col3) {
-                            rendimientoHtml += '<div class="row">';
-                            if (ri.last_home) {
-                                const lh = ri.last_home;
-                                rendimientoHtml += `
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 bg-white">
-                                            <div class="card-header"><h6 class="mb-0"><strong>Último ${data.home_team} (Casa)</strong></h6></div>
-                                            <div class="card-body">
-                                                <p class="text-center fs-3">${lh.score.replace(':', ' - ')}</p>
-                                                <p class="text-center"><span class="home-color">${lh.home}</span> vs <span class="away-color">${lh.away}</span></p>
-                                                <p class="mb-1"><span class="text-muted small">${lh.date || '-'}</span></p>
-                                                <p class="mb-1"><strong>AH:</strong> <span class="ah-value">${lh.ah}</span></p>
-                                                ${renderCoverLine(lh.cover_status)}
-                                                ${renderStatsTable(lh.stats_rows)}
-                                            </div>
-                                        </div>
-                                    </div>`;
-                            }
-                            if (ri.last_away) {
-                                const la = ri.last_away;
-                                rendimientoHtml += `
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 bg-white">
-                                            <div class="card-header"><h6 class="mb-0"><strong>Último ${data.away_team} (Visita)</strong></h6></div>
-                                            <div class="card-body">
-                                                <p class="text-center fs-3">${la.score.replace(':', ' - ')}</p>
-                                                <p class="text-center"><span class="home-color">${la.home}</span> vs <span class="away-color">${la.away}</span></p>
-                                                <p class="mb-1"><span class="text-muted small">${la.date || '-'}</span></p>
-                                                <p class="mb-1"><strong>AH:</strong> <span class="ah-value">${la.ah}</span></p>
-                                                ${renderCoverLine(la.cover_status)}
-                                                ${renderStatsTable(la.stats_rows)}
-                                            </div>
-                                        </div>
-                                    </div>`;
-                            }
-                            if (ri.h2h_col3) {
-                                const h2h = ri.h2h_col3;
-                                rendimientoHtml += `
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 bg-white">
-                                            <div class="card-header"><h6 class="mb-0"><strong>H2H Referencia</strong></h6></div>
-                                            <div class="card-body">
-                                                <p class="text-center fs-3">${h2h.score}</p>
-                                                <p class="text-center"><span class="home-color">${h2h.home}</span> vs <span class="away-color">${h2h.away}</span></p>
-                                                <p class="mb-1"><strong>AH:</strong> <span class="ah-value">${h2h.ah}</span></p>
-                                                ${renderCoverLine(h2h.cover_status)}
-                                                ${renderStatsTable(h2h.stats_rows)}
-                                            </div>
-                                        </div>
-                                    </div>`;
-                            }
-                            rendimientoHtml += '</div>';
-                        }
-
-                        const newHtml = data.simplified_html || '';
-                        let comparativasHtml = '';
-                        const ci = data.comparativas_indirectas || {};
-                        if (ci.left || ci.right) {
-                            comparativasHtml += '<div class="row">';
-                            if (ci.left) {
-                                const c1 = ci.left;
-                                comparativasHtml += `
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-header"><h6 class="mb-0"><span class="home-color">${c1.title_home_name}</span> vs. últ. rival de <span class="away-color">${c1.title_away_name}</span></h6></div>
-                                            <div class="card-body">
-                                                <p class="text-center fs-3">${c1.score.replace(':', ' - ')}</p>
-                                                <p class="text-center"><span class="home-color">${c1.home_team}</span> vs <span class="away-color">${c1.away_team}</span></p>
-                                                <p class="mb-1"><strong>AH:</strong> <span class="ah-value">${c1.ah}</span></p>
-                                                <p class="mb-1"><strong>Localía de '${c1.title_home_name}':</strong> <span class="home-color">${c1.localia}</span></p>
-                                                ${renderCoverLine(c1.cover_status)}
-                                                ${renderStatsTable(c1.stats_rows)}
-                                                ${c1.analysis ? `<p class="mt-2"><strong>Análisis:</strong> ${c1.analysis}</p>` : ''}
-                                            </div>
-                                        </div>
-                                    </div>`;
-                            }
-                            if (ci.right) {
-                                const c2 = ci.right;
-                                comparativasHtml += `
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-header"><h6 class="mb-0"><span class="away-color">${c2.title_away_name}</span> vs. últ. rival de <span class="home-color">${c2.title_home_name}</span></h6></div>
-                                            <div class="card-body">
-                                                <p class="text-center fs-3">${c2.score.replace(':', ' - ')}</p>
-                                                <p class="text-center"><span class="home-color">${c2.home_team}</span> vs <span class="away-color">${c2.away_team}</span></p>
-                                                <p class="mb-1"><strong>AH:</strong> <span class="ah-value">${c2.ah}</span></p>
-                                                <p class="mb-1"><strong>Localía de '${c2.title_away_name}':</strong> <span class="away-color">${c2.localia}</span></p>
-                                                ${renderCoverLine(c2.cover_status)}
-                                                ${renderStatsTable(c2.stats_rows)}
-                                                ${c2.analysis ? `<p class="mt-2"><strong>Análisis:</strong> ${c2.analysis}</p>` : ''}
-                                            </div>
-                                        </div>
-                                    </div>`;
-                            }
-                            comparativasHtml += '</div>';
-                        }
-                        const combinedHtml = finalScoreHtml + `
-                            <div class="row g-3">
-                                <div class="col-md-8">
-                                    ${rendimientoHtml}
-                                </div>
-                                <div class="col-md-4">
-                                    ${newHtml}
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    ${comparativasHtml}
-                                </div>
-                            </div>
-                        `;
-
-                        advancedContainer.innerHTML = combinedHtml;
-                        if (triggerBtn) {
-                            triggerBtn.disabled = true;
-                            triggerBtn.textContent = 'Análisis avanzado cargado';
-                            triggerBtn.classList.add('disabled');
-                        }
-                    })
-                    .catch(error => {
-                        advancedContainer.removeAttribute('data-advanced-loaded');
-                        if (error.name === 'AbortError') {
-                            advancedContainer.innerHTML = '<div class="preview-loading">Tiempo de espera agotado (60s).</div>';
-                        } else if (error.isApiError && error.payload && error.payload.error) {
-                            advancedContainer.innerHTML = `<div class="preview-loading">Error: ${error.payload.error}</div>`;
-                        } else {
-                            console.error('Error:', error);
-                            advancedContainer.innerHTML = '<div class="preview-loading">Error al cargar el análisis.</div>';
-                        }
-                        if (triggerBtn) {
-                            triggerBtn.disabled = false;
-                            triggerBtn.textContent = 'Reintentar análisis avanzado';
-                        }
-                    });
-            };
-
-            const attachAnalysisEvents = () => {
-                document.querySelectorAll('.analysis-preview-trigger').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const targetId = btn.dataset.previewTarget;
-                        const container = document.getElementById(targetId);
-                        if (!container) return;
-                        if (container.hasAttribute('hidden')) {
-                            container.removeAttribute('hidden');
-                            ensureQuickPreview(btn.dataset.matchId, container);
-                        } else {
-                            container.setAttribute('hidden', '');
-                        }
-                    });
-                });
-
-                document.querySelectorAll('.refresh-analysis').forEach(btn => {
-                    btn.addEventListener('click', () => loadMatch(btn.dataset.matchId, { force: true }));
-                });
-            };
-
-            document.addEventListener('click', event => {
-                const advancedBtn = event.target.closest('.load-advanced-btn');
-                if (advancedBtn) {
-                    const previewContainer = advancedBtn.closest('.quick-preview')?.parentElement;
-                    loadAdvancedAnalysis(advancedBtn.dataset.matchId, advancedBtn, previewContainer);
+                const card = event.target.closest('.match-card');
+                if (card) {
+                    const matchId = card.dataset.matchId;
+                    const section = card.dataset.section;
+                    setActiveCard(matchId);
+                    loadQuickPreview(matchId, section);
                 }
             });
 
-            attachAnalysisEvents();
-            highlightRow(activeMatchId);
-        });
+            autoSelectFirstCard(state.activeList);
+        })();
     </script>
 </body>
 </html>
