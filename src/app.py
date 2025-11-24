@@ -337,6 +337,17 @@ async def _fetch_nowgoal_html(path: str | None = None, filter_state: int | None 
 
     if requests_first:
         try:
+            html = _fetch_nowgoal_html_sync(target_url)
+            if html:
+                return html
+        except Exception as e:
+            print(f"Error en fetch sync: {e}")
+    
+    return None
+
+def _parse_number_clean(s):
+    if s is None:
+        return None
     txt = str(s).strip()
     txt = txt.replace('−', '-')  # unicode minus
     txt = txt.replace(',', '.')
