@@ -11,12 +11,24 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait, Select
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait, Select
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import TimeoutException, WebDriverException
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    SELENIUM_AVAILABLE = False
+    webdriver = None
+    ChromeOptions = None
+    By = None
+    WebDriverWait = None
+    Select = None
+    EC = None
+    TimeoutException = None
+    WebDriverException = None
 
 # --- CONFIGURACIÓN GLOBAL ---
 BASE_URL_OF = "https://live18.nowgoal25.com"
@@ -676,6 +688,8 @@ def _reset_selenium_driver():
 
 def _get_or_create_selenium_driver():
     global _driver_instance
+    if not SELENIUM_AVAILABLE:
+        return None
     with _driver_instance_lock:
         if _driver_instance is None:
             try:
