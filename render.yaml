@@ -2,6 +2,7 @@ services:
   - type: web
     name: nowgoal-app
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn src.app:app
     envVars:
