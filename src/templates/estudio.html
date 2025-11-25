@@ -275,18 +275,47 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
-                height: 85vh;
-                /* Occupy most of the screen height but leave top visible */
+                height: 70vh;
+                /* Occupy 70% of screen to show background content */
                 background: var(--card-bg);
                 z-index: 1050;
                 padding: 1.5rem;
+                padding-top: 2.5rem;
+                /* Space for handle */
                 overflow-y: auto;
                 transform: translateY(100%);
                 /* Slide from bottom */
-                transition: transform 0.3s ease-in-out;
-                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                /* Smooth spring-like */
+                box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
                 border-radius: 24px 24px 0 0;
                 /* Rounded top corners */
+            }
+
+            .sidebar::before {
+                content: '';
+                position: absolute;
+                top: 12px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 40px;
+                height: 5px;
+                background-color: #cbd5e1;
+                border-radius: 10px;
+                pointer-events: none;
+            }
+
+            .sidebar-close-btn {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: none;
+                border: none;
+                font-size: 1.25rem;
+                color: #64748b;
+                cursor: pointer;
+                padding: 5px;
+                z-index: 1055;
             }
 
             .sidebar.active {
@@ -368,6 +397,9 @@
     </button>
     <div class="layout">
         <aside class="sidebar">
+            <button type="button" class="sidebar-close-btn d-lg-none" id="sidebar-close-btn" aria-label="Cerrar menú">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
             <div class="sidebar-card">
                 <div class="sidebar-card-header">
                     <h5 class="mb-0">Herramientas disponibles</h5>
@@ -546,6 +578,11 @@
             if (mobileToggle) {
                 mobileToggle.addEventListener('click', toggleSidebar);
                 sidebarOverlay.addEventListener('click', closeSidebar);
+            }
+
+            const closeBtn = document.getElementById('sidebar-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeSidebar);
             }
 
             // Fullscreen Toggle Logic
