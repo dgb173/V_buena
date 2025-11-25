@@ -765,7 +765,6 @@ def mostrar_estudio(match_id):
         format_ah=format_ah_as_decimal_string_of,
         upcoming_matches=upcoming_matches,
         finished_matches=finished_matches,
-        finished_matches=finished_matches,
         selected_match_id=target_match_id,
         current_handicap=handicap_filter,
         current_ou=goal_line_filter
