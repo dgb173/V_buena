@@ -328,7 +328,8 @@
                 left: 0;
                 width: 100vw;
                 height: 100vh;
-                background: rgba(0, 0, 0, 0.5);
+                background: rgba(0, 0, 0, 0.2);
+                /* Lighter overlay to see background */
                 z-index: 1040;
                 opacity: 0;
                 visibility: hidden;
@@ -398,7 +399,8 @@
     <div class="layout">
         <aside class="sidebar">
             <button type="button" class="sidebar-close-btn d-lg-none" id="sidebar-close-btn" aria-label="Cerrar menú">
-                <i class="fa-solid fa-xmark"></i>
+                <span class="me-1" style="font-size: 0.9rem; vertical-align: middle;">Ocultar</span> <i
+                    class="fa-solid fa-xmark" style="vertical-align: middle;"></i>
             </button>
             <div class="sidebar-card">
                 <div class="sidebar-card-header">
