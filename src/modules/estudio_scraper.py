@@ -4,6 +4,7 @@ import time
 import copy
 import requests
 import re
+import json
 import math
 import threading
 from contextlib import contextmanager
@@ -502,7 +503,68 @@ def extract_last_match_in_league_of(soup, table_id, team_name, league_id, is_hom
         "handicap_line_raw": last_match.get('ahLine_raw', 'N/A'), "match_id": last_match.get('matchIndex')
     }
 
-def extract_bet365_initial_odds_of(soup):
+def fetch_odds_from_bf_data(match_id):
+    """
+    Fallback para obtener líneas de hándicap y goles desde bf_en-idn.js
+    cuando no están disponibles en el HTML principal.
+    """
+    url = "https://live18.nowgoal25.com/gf/data/bf_en-idn.js"
+    try:
+        session = get_requests_session_of()
+        response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        content = response.text
+        
+        # Buscar la entrada correspondiente al match_id
+        # Formato esperado: A[123]=[2696131,...]
+        # Buscamos el ID del partido en el contenido
+        match_pattern = re.compile(r"A\[\d+\]=\[(.*?)\];")
+        
+        for match in match_pattern.finditer(content):
+            row_str = match.group(1)
+            if str(match_id) not in row_str:
+                continue
+                
+            # Encontrado, ahora parseamos con cuidado
+            # Reemplazar comillas simples por dobles para JSON
+            row_str_clean = row_str.replace("'", '"')
+            
+            # Reemplazar valores vacíos ,, por ,null,
+            while ',,' in row_str_clean:
+                row_str_clean = row_str_clean.replace(',,', ',null,')
+            
+            # Manejar comas al inicio o final dentro de los corchetes (aunque aquí ya tenemos el contenido)
+            if row_str_clean.endswith(','):
+                row_str_clean += 'null'
+            if row_str_clean.startswith(','):
+                row_str_clean = 'null' + row_str_clean
+                
+            try:
+                # Envolver en corchetes para parsear como lista
+                data = json.loads(f"[{row_str_clean}]")
+                
+                # Verificar que sea el ID correcto (índice 0)
+                if str(data[0]) == str(match_id):
+                    # Extraer datos
+                    # Índice 21: Hándicap (ej: 0.5, -1, etc.)
+                    # Índice 25: Línea de goles (ej: 2.5, 3, etc.)
+                    
+                    ah_line = data[21] if len(data) > 21 else None
+                    goals_line = data[25] if len(data) > 25 else None
+                    
+                    return {
+                        "ah_linea_raw": str(ah_line) if ah_line is not None else "N/A",
+                        "goals_linea_raw": str(goals_line) if goals_line is not None else "N/A"
+                    }
+            except json.JSONDecodeError:
+                continue
+                
+        return None
+    except Exception as e:
+        print(f"Error fetching bf_data: {e}")
+        return None
+
+def extract_bet365_initial_odds_of(soup, match_id=None):
     odds_info = {
         "ah_home_cuota": "N/A", "ah_linea_raw": "N/A", "ah_away_cuota": "N/A",
         "goals_over_cuota": "N/A", "goals_linea_raw": "N/A", "goals_under_cuota": "N/A"
@@ -518,6 +580,16 @@ def extract_bet365_initial_odds_of(soup):
         odds_info["goals_over_cuota"] = tds[8].get("data-o", tds[8].text).strip()
         odds_info["goals_linea_raw"] = tds[9].get("data-o", tds[9].text).strip()
         odds_info["goals_under_cuota"] = tds[10].get("data-o", tds[10].text).strip()
+    
+    # Fallback si no se encontraron líneas (ah_linea_raw es "N/A" o "-")
+    if (odds_info["ah_linea_raw"] in ["N/A", "-", ""] or odds_info["goals_linea_raw"] in ["N/A", "-", ""]) and match_id:
+        fallback_data = fetch_odds_from_bf_data(match_id)
+        if fallback_data:
+            if odds_info["ah_linea_raw"] in ["N/A", "-", ""]:
+                odds_info["ah_linea_raw"] = fallback_data.get("ah_linea_raw", "N/A")
+            if odds_info["goals_linea_raw"] in ["N/A", "-", ""]:
+                odds_info["goals_linea_raw"] = fallback_data.get("goals_linea_raw", "N/A")
+                
     return odds_info
 
 def extract_standings_data_from_h2h_page_of(soup, team_name):
@@ -670,7 +742,7 @@ def analizar_partido_completo(match_id: str):
         h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None)
         comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True)
         comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False)
-        main_match_odds_data = extract_bet365_initial_odds_of(soup_completo)
+        main_match_odds_data = extract_bet365_initial_odds_of(soup_completo, main_match_id)
         final_score, _ = extract_final_score_of(soup_completo)
         details_h2h_col3 = get_h2h_details_for_original_logic_of(
             key_match_id_rival_a, rival_a_id, rival_b_id, rival_a_name, rival_b_name
