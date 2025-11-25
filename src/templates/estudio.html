@@ -169,15 +169,75 @@
         @media (max-width: 992px) {
             .layout {
                 flex-direction: column;
+                padding: 1rem;
             }
             .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 85%;
+                max-width: 320px;
+                height: 100vh;
+                background: var(--card-bg);
+                z-index: 1050;
+                padding: 1.5rem;
+                overflow-y: auto;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0,0,0,0.5);
+                z-index: 1040;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease;
+            }
+            .sidebar-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                background: #0d6efd;
+                color: white;
+                border-radius: 50%;
+                border: none;
+                box-shadow: 0 4px 10px rgba(13, 110, 253, 0.4);
+                z-index: 1060;
+                font-size: 1.2rem;
+            }
+            .content {
                 width: 100%;
-                position: static;
+            }
+        }
+        @media (min-width: 993px) {
+            .mobile-menu-toggle, .sidebar-overlay {
+                display: none;
             }
         }
     </style>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+        <i class="fa-solid fa-bars"></i>
+    </button>
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-card">
@@ -320,6 +380,33 @@
             const statusBox = document.getElementById('analysis-status');
             const sidebarRows = document.querySelectorAll('.sidebar-table tbody tr[data-match-id]');
             const sidebarButtons = document.querySelectorAll('.sidebar-analyze-btn');
+            
+            // Mobile Menu Logic
+            const mobileToggle = document.getElementById('mobile-menu-toggle');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            const sidebar = document.querySelector('.sidebar');
+            
+            const toggleSidebar = () => {
+                sidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+                const icon = mobileToggle.querySelector('i');
+                if (sidebar.classList.contains('active')) {
+                    icon.classList.replace('fa-bars', 'fa-xmark');
+                } else {
+                    icon.classList.replace('fa-xmark', 'fa-bars');
+                }
+            };
+            
+            const closeSidebar = () => {
+                sidebar.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+                mobileToggle.querySelector('i').classList.replace('fa-xmark', 'fa-bars');
+            };
+            
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', toggleSidebar);
+                sidebarOverlay.addEventListener('click', closeSidebar);
+            }
 
             let activeMatchId = panelWrapper.dataset.currentMatch || '';
             let currentController = null;
@@ -412,7 +499,10 @@
             });
 
             sidebarRows.forEach(row => {
-                row.addEventListener('click', () => loadMatch(row.dataset.matchId));
+                row.addEventListener('click', () => {
+                    loadMatch(row.dataset.matchId);
+                    if (window.innerWidth < 992) closeSidebar();
+                });
             });
 
             const formatCoverStatus = (status) => {
