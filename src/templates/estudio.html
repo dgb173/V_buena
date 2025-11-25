@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,18 +13,21 @@
             --card-bg: #ffffff;
             --card-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
         }
+
         body {
             background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #1f2a37;
             min-height: 100vh;
         }
+
         .layout {
             display: flex;
             gap: 1.5rem;
             align-items: flex-start;
             padding: 1.5rem;
         }
+
         .sidebar {
             width: var(--sidebar-width);
             position: sticky;
@@ -33,22 +37,26 @@
             flex-direction: column;
             gap: 1.25rem;
         }
+
         .content {
             flex: 1;
             min-width: 0;
         }
+
         .sidebar-card {
             background: var(--card-bg);
             border-radius: 20px;
             padding: 1.25rem 1.5rem;
             box-shadow: var(--card-shadow);
         }
+
         .sidebar-card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 0.75rem;
         }
+
         .tool-option {
             display: flex;
             align-items: center;
@@ -57,16 +65,25 @@
             border-radius: 12px;
             cursor: pointer;
         }
+
         .tool-option input {
             accent-color: #ff4d4f;
         }
+
         .tool-option .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
         }
-        .status-dot.entreno { background-color: #ff4d4f; }
-        .status-dot.analisis { background-color: #0dcaf0; }
+
+        .status-dot.entreno {
+            background-color: #ff4d4f;
+        }
+
+        .status-dot.analisis {
+            background-color: #0dcaf0;
+        }
+
         .analysis-status {
             font-size: 0.85rem;
             margin-top: 0.8rem;
@@ -75,52 +92,79 @@
             background: #f1f5f9;
             color: #475569;
         }
-        .analysis-status[data-state="loading"] { background: #fff4e6; color: #b45309; }
-        .analysis-status[data-state="success"] { background: #ecfdf5; color: #047857; }
-        .analysis-status[data-state="error"] { background: #fee2e2; color: #b91c1c; }
-        .analysis-status[data-state="warning"] { background: #fef3c7; color: #92400e; }
+
+        .analysis-status[data-state="loading"] {
+            background: #fff4e6;
+            color: #b45309;
+        }
+
+        .analysis-status[data-state="success"] {
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .analysis-status[data-state="error"] {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .analysis-status[data-state="warning"] {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
         .sidebar-table-wrapper {
             max-height: 360px;
             overflow: auto;
         }
+
         .sidebar-table {
             font-size: 0.85rem;
         }
+
         .sidebar-table thead th {
             font-weight: 600;
             color: #475569;
             border-bottom-width: 1px;
         }
+
         .sidebar-table tbody tr {
             cursor: pointer;
             transition: background 0.2s ease;
         }
+
         .sidebar-table tbody tr.active {
             background-color: #eef2ff;
             border-left: 4px solid #6366f1;
         }
+
         .team-name {
             font-weight: 600;
         }
+
         .odds-badge {
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
             border-radius: 999px;
         }
+
         .handicap-badge {
             background: #f87171;
             color: #fff;
         }
+
         .goal-badge {
             background: #34d399;
             color: #fff;
         }
+
         .icon-button {
             border: none;
             background: transparent;
             color: #0d6efd;
             font-size: 1rem;
         }
+
         #analysis-panel-wrapper {
             background: var(--card-bg);
             border-radius: 24px;
@@ -128,83 +172,145 @@
             box-shadow: var(--card-shadow);
             min-height: 400px;
         }
+
         .analysis-panel .main-title {
             font-size: 2rem;
             font-weight: 700;
             color: #0f172a;
         }
+
         .analysis-panel .sub-title {
             font-size: 1.3rem;
             color: #475569;
         }
-        .home-color { color: #2563eb; font-weight: 700; }
-        .away-color { color: #f97316; font-weight: 700; }
+
+        .home-color {
+            color: #2563eb;
+            font-weight: 700;
+        }
+
+        .away-color {
+            color: #f97316;
+            font-weight: 700;
+        }
+
         .vs-label {
             font-size: 0.85rem;
             color: #94a3b8;
             margin: 0 0.35rem;
         }
+
         .panel-loading {
             text-align: center;
             padding: 3rem 1rem;
             font-size: 1rem;
             color: #475569;
         }
-        .panel-loading.error { color: #b91c1c; }
+
+        .panel-loading.error {
+            color: #b91c1c;
+        }
+
         .preview-container {
             border: 1px dashed #c7d2fe;
             border-radius: 16px;
             padding: 1rem;
             background: #f8f9ff;
         }
+
         .preview-loading {
             text-align: center;
             font-style: italic;
             color: #64748b;
         }
-        .quick-preview h5 { font-weight: 700; }
+
+        .quick-preview h5 {
+            font-weight: 700;
+        }
+
         .advanced-container {
             min-height: 60px;
         }
+
+        /* Fullscreen Mode Styles */
+        .layout.fullscreen .sidebar {
+            display: none !important;
+        }
+
+        .layout.fullscreen .content {
+            width: 100% !important;
+            flex: 1 1 100%;
+        }
+
+        .fullscreen-toggle {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .fullscreen-toggle:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
         @media (max-width: 992px) {
             .layout {
                 flex-direction: column;
-                padding: 1rem;
+                padding: 0;
+                /* Remove padding to let content fill the screen */
+                gap: 0;
             }
+
             .sidebar {
                 position: fixed;
-                top: 0;
+                bottom: 0;
                 left: 0;
-                width: 85%;
-                max-width: 320px;
-                height: 100vh;
+                width: 100%;
+                height: 85vh;
+                /* Occupy most of the screen height but leave top visible */
                 background: var(--card-bg);
                 z-index: 1050;
                 padding: 1.5rem;
                 overflow-y: auto;
-                transform: translateX(-100%);
+                transform: translateY(100%);
+                /* Slide from bottom */
                 transition: transform 0.3s ease-in-out;
-                box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+                border-radius: 24px 24px 0 0;
+                /* Rounded top corners */
             }
+
             .sidebar.active {
-                transform: translateX(0);
+                transform: translateY(0);
             }
+
             .sidebar-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
                 width: 100vw;
                 height: 100vh;
-                background: rgba(0,0,0,0.5);
+                background: rgba(0, 0, 0, 0.5);
                 z-index: 1040;
                 opacity: 0;
                 visibility: hidden;
                 transition: opacity 0.3s ease;
             }
+
             .sidebar-overlay.active {
                 opacity: 1;
                 visibility: visible;
             }
+
             .mobile-menu-toggle {
                 display: flex;
                 align-items: center;
@@ -212,27 +318,49 @@
                 position: fixed;
                 bottom: 20px;
                 right: 20px;
-                width: 50px;
-                height: 50px;
+                width: 56px;
+                height: 56px;
                 background: #0d6efd;
                 color: white;
                 border-radius: 50%;
                 border: none;
-                box-shadow: 0 4px 10px rgba(13, 110, 253, 0.4);
+                box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
                 z-index: 1060;
-                font-size: 1.2rem;
+                font-size: 1.4rem;
+                transition: transform 0.2s;
             }
+
+            .mobile-menu-toggle:active {
+                transform: scale(0.95);
+            }
+
             .content {
                 width: 100%;
+                padding: 1rem;
+                /* Add internal padding to content if needed */
+                padding-bottom: 80px;
+                /* Space for the toggle button */
+            }
+
+            #analysis-panel-wrapper {
+                border-radius: 0;
+                /* Remove border radius on mobile for full width feel */
+                box-shadow: none;
+                min-height: 100vh;
+                /* Ensure it takes full height */
             }
         }
+
         @media (min-width: 993px) {
-            .mobile-menu-toggle, .sidebar-overlay {
+
+            .mobile-menu-toggle,
+            .sidebar-overlay {
                 display: none;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
     <button class="mobile-menu-toggle" id="mobile-menu-toggle">
@@ -264,7 +392,8 @@
                 <form id="match-search-form" class="d-flex flex-column gap-3">
                     <div>
                         <label for="match-id-input" class="form-label fw-semibold">ID Partido Principal</label>
-                        <input type="text" class="form-control" id="match-id-input" placeholder="Ej: 2898733" value="{{ selected_match_id }}">
+                        <input type="text" class="form-control" id="match-id-input" placeholder="Ej: 2898733"
+                            value="{{ selected_match_id }}">
                     </div>
                     <button type="submit" class="btn btn-danger w-100">Analizar Partido (OF)</button>
                 </form>
@@ -291,7 +420,8 @@
                         </thead>
                         <tbody>
                             {% for match in upcoming_matches %}
-                            <tr data-match-id="{{ match.id }}" class="{% if match.id == selected_match_id %}active{% endif %}">
+                            <tr data-match-id="{{ match.id }}"
+                                class="{% if match.id == selected_match_id %}active{% endif %}">
                                 <td class="text-nowrap">{{ match.time }}</td>
                                 <td>
                                     <span class="team-name">{{ match.home_team }}</span>
@@ -299,16 +429,19 @@
                                     <span class="team-name">{{ match.away_team }}</span>
                                 </td>
                                 <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
+                                        }}</span></td>
                                 <td class="text-center">
-                                    <button type="button" class="icon-button sidebar-analyze-btn" data-match-id="{{ match.id }}" title="Ver análisis en el panel">
+                                    <button type="button" class="icon-button sidebar-analyze-btn"
+                                        data-match-id="{{ match.id }}" title="Ver análisis en el panel">
                                         <i class="fa-solid fa-chart-simple"></i>
                                     </button>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No hay partidos próximos disponibles.</td>
+                                <td colspan="5" class="text-center text-muted py-4">No hay partidos próximos
+                                    disponibles.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -335,7 +468,8 @@
                         </thead>
                         <tbody>
                             {% for match in finished_matches %}
-                            <tr data-match-id="{{ match.id }}" class="{% if match.id == selected_match_id %}active{% endif %}">
+                            <tr data-match-id="{{ match.id }}"
+                                class="{% if match.id == selected_match_id %}active{% endif %}">
                                 <td class="text-nowrap">{{ match.time }}</td>
                                 <td>
                                     <span class="team-name">{{ match.home_team }}</span>
@@ -344,16 +478,19 @@
                                 </td>
                                 <td class="text-center"><span class="badge bg-dark">{{ match.score or '-' }}</span></td>
                                 <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
+                                        }}</span></td>
                                 <td class="text-center">
-                                    <button type="button" class="icon-button sidebar-analyze-btn" data-match-id="{{ match.id }}" title="Ver análisis en el panel">
+                                    <button type="button" class="icon-button sidebar-analyze-btn"
+                                        data-match-id="{{ match.id }}" title="Ver análisis en el panel">
                                         <i class="fa-solid fa-chart-simple"></i>
                                     </button>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Todavía no se han registrado partidos terminados.</td>
+                                <td colspan="6" class="text-center text-muted py-4">Todavía no se han registrado
+                                    partidos terminados.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -362,7 +499,10 @@
             </div>
         </aside>
 
-        <main class="content">
+        <main class="content" style="position: relative;">
+            <button class="fullscreen-toggle" id="fullscreen-toggle" title="Pantalla completa">
+                <i class="fa-solid fa-expand"></i>
+            </button>
             <div id="analysis-panel-wrapper" data-current-match="{{ selected_match_id }}">
                 {% include 'partials/analysis_panel.html' %}
             </div>
@@ -380,12 +520,12 @@
             const statusBox = document.getElementById('analysis-status');
             const sidebarRows = document.querySelectorAll('.sidebar-table tbody tr[data-match-id]');
             const sidebarButtons = document.querySelectorAll('.sidebar-analyze-btn');
-            
+
             // Mobile Menu Logic
             const mobileToggle = document.getElementById('mobile-menu-toggle');
             const sidebarOverlay = document.getElementById('sidebar-overlay');
             const sidebar = document.querySelector('.sidebar');
-            
+
             const toggleSidebar = () => {
                 sidebar.classList.toggle('active');
                 sidebarOverlay.classList.toggle('active');
@@ -396,16 +536,34 @@
                     icon.classList.replace('fa-xmark', 'fa-bars');
                 }
             };
-            
+
             const closeSidebar = () => {
                 sidebar.classList.remove('active');
                 sidebarOverlay.classList.remove('active');
                 mobileToggle.querySelector('i').classList.replace('fa-xmark', 'fa-bars');
             };
-            
+
             if (mobileToggle) {
                 mobileToggle.addEventListener('click', toggleSidebar);
                 sidebarOverlay.addEventListener('click', closeSidebar);
+            }
+
+            // Fullscreen Toggle Logic
+            const fullscreenToggle = document.getElementById('fullscreen-toggle');
+            const layout = document.querySelector('.layout');
+
+            if (fullscreenToggle) {
+                fullscreenToggle.addEventListener('click', () => {
+                    layout.classList.toggle('fullscreen');
+                    const icon = fullscreenToggle.querySelector('i');
+                    if (layout.classList.contains('fullscreen')) {
+                        icon.classList.replace('fa-expand', 'fa-compress');
+                        fullscreenToggle.title = "Mostrar barra lateral";
+                    } else {
+                        icon.classList.replace('fa-compress', 'fa-expand');
+                        fullscreenToggle.title = "Pantalla completa";
+                    }
+                });
             }
 
             let activeMatchId = panelWrapper.dataset.currentMatch || '';
@@ -830,4 +988,5 @@
         });
     </script>
 </body>
+
 </html>
