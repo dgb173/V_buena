@@ -638,18 +638,6 @@ def _render_matches_dashboard(page_mode='upcoming', page_title='Partidos'):
         goal_line_options=goal_line_options,
         page_mode=page_mode,
         page_title=page_title,
-        error=error_msg,
-    )
-
-@app.route('/')
-def index():
-    print("Recibida petici�n para Pr�ximos Partidos...")
-    return _render_matches_dashboard('upcoming', 'Pr�ximos Partidos')
-
-
-@app.route('/resultados')
-def resultados():
-    print("Recibida petici�n para Partidos Finalizados...")
     return _render_matches_dashboard('finished', 'Resultados Finalizados')
 
 
