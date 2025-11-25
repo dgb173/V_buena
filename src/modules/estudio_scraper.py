@@ -315,13 +315,75 @@ def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name)
     """
 
 # --- FUNCIONES DE EXTRACCIÓN DE DATOS ---
-def get_match_details_from_row_of(row_element, score_class_selector='score', source_table_type='h2h'):
+def extract_vs_odds(soup):
+    """
+    Extrae y parsea la variable Vs_hOdds del script para obtener las cuotas históricas.
+    Retorna un diccionario: { match_id: ah_line_str }
+    Prioriza Bet365 (ID 8) > Crown (ID 3).
+    """
+    odds_map = {}
+    if not soup: return odds_map
+    
+    script_content = None
+    for script in soup.find_all('script'):
+        if script.string and 'var Vs_hOdds' in script.string:
+            script_content = script.string
+            break
+            
+    if not script_content: return odds_map
+    
+    try:
+        # Extraer el array Vs_hOdds = [[...]];
+        match = re.search(r'var Vs_hOdds\s*=\s*(\[\[.*?\]\]);', script_content, re.DOTALL)
+        if match:
+            raw_data = match.group(1)
+            # Limpiar para JSON
+            raw_data = raw_data.replace("'", '"')
+            # Manejar posibles trailing commas o ,,
+            while ',,' in raw_data:
+                raw_data = raw_data.replace(',,', ',null,')
+            
+            data = json.loads(raw_data)
+            
+            # Procesar datos
+            # Formato: [MatchID, BookieID, H, AH, A, ...]
+            # Índices: 0=ID, 1=Bookie, 3=AH Inicial
+            
+            # Agrupar por match_id
+            temp_map = {}
+            for row in data:
+                if len(row) < 4: continue
+                mid = str(row[0])
+                bookie = row[1]
+                ah = row[3]
+                
+                if mid not in temp_map:
+                    temp_map[mid] = {}
+                temp_map[mid][bookie] = ah
+            
+            # Seleccionar mejor bookie
+            for mid, bookies in temp_map.items():
+                if 8 in bookies: # Bet365
+                    odds_map[mid] = str(bookies[8])
+                elif 3 in bookies: # Crown
+                    odds_map[mid] = str(bookies[3])
+                elif bookies: # Cualquiera
+                    odds_map[mid] = str(next(iter(bookies.values())))
+                    
+    except Exception as e:
+        print(f"Error parsing Vs_hOdds: {e}")
+        
+    return odds_map
+
+def get_match_details_from_row_of(row_element, score_class_selector='score', source_table_type='h2h', odds_map=None):
     try:
         cells = row_element.find_all('td')
         home_idx, score_idx, away_idx, ah_idx = 2, 3, 4, 11
         if len(cells) <= ah_idx: return None
         date_span = cells[1].find('span', attrs={'name': 'timeData'})
-        date_txt = date_span.get_text(strip=True) if date_span else ''
+        # Priorizar data-t si existe (formato YYYY-MM-DD HH:MM:SS)
+        date_txt = date_span.get('data-t', '').split(' ')[0] if date_span and date_span.get('data-t') else (date_span.get_text(strip=True) if date_span else '')
+        
         def get_cell_txt(idx):
             a = cells[idx].find('a')
             return a.get_text(strip=True) if a else cells[idx].get_text(strip=True)
@@ -334,6 +396,13 @@ def get_match_details_from_row_of(row_element, score_class_selector='score', sou
         score_raw, score_fmt = (f"{m.group(1)}-{m.group(2)}", f"{m.group(1)}:{m.group(2)}") if m else ('?-?', '?:?')
         ah_cell = cells[ah_idx]
         ah_line_raw = (ah_cell.get('data-o') or ah_cell.text).strip()
+        
+        # Fallback usando odds_map si está disponible y el dato está vacío
+        if (not ah_line_raw or ah_line_raw == '-') and odds_map:
+            match_index = row_element.get('index')
+            if match_index and match_index in odds_map:
+                ah_line_raw = odds_map[match_index]
+
         ah_line_fmt = format_ah_as_decimal_string_of(ah_line_raw) if ah_line_raw not in ['', '-'] else '-'
         return {
             'date': date_txt, 'home': home, 'away': away, 'score': score_fmt,
@@ -478,15 +547,22 @@ def get_team_league_info_from_script_of(soup):
     return home_id, away_id, league_id, home_name, away_name, league_name
 
 def _parse_date_ddmmyyyy(d: str) -> tuple:
+    # Intentar formato DD-MM-YYYY
     m = re.search(r'(\d{2})-(\d{2})-(\d{4})', d or '')
-    return (int(m.group(3)), int(m.group(2)), int(m.group(1))) if m else (1900, 1, 1)
+    if m: return (int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    
+    # Intentar formato YYYY-MM-DD
+    m2 = re.search(r'(\d{4})-(\d{2})-(\d{2})', d or '')
+    if m2: return (int(m2.group(1)), int(m2.group(2)), int(m2.group(3)))
+    
+    return (1900, 1, 1)
 
-def extract_last_match_in_league_of(soup, table_id, team_name, league_id, is_home_game):
+def extract_last_match_in_league_of(soup, table_id, team_name, league_id, is_home_game, odds_map=None):
     if not soup or not (table := soup.find("table", id=table_id)): return None
     candidate_matches = []
     score_selector = 'fscore_1' if is_home_game else 'fscore_2'
     for row in table.find_all("tr", id=re.compile(rf"tr{table_id[-1]}_\d+")):
-        if not (details := get_match_details_from_row_of(row, score_class_selector=score_selector, source_table_type='hist')):
+        if not (details := get_match_details_from_row_of(row, score_class_selector=score_selector, source_table_type='hist', odds_map=odds_map)):
             continue
         if league_id and details.get("league_id_hist") != str(league_id):
             continue
@@ -680,12 +756,12 @@ def extract_final_score_of(soup):
     except Exception: pass
     return '?:?', '?-?'
 
-def extract_h2h_data_of(soup, home_name, away_name, league_id=None):
+def extract_h2h_data_of(soup, home_name, away_name, league_id=None, odds_map=None):
     results = {'ah1': '-', 'res1': '?:?', 'res1_raw': '?-?', 'match1_id': None, 'ah6': '-', 'res6': '?:?', 'res6_raw': '?-?', 'match6_id': None, 'h2h_gen_home': "Local (H2H Gen)", 'h2h_gen_away': "Visitante (H2H Gen)"}
     if not soup or not home_name or not away_name or not (h2h_table := soup.find("table", id="table_v3")): return results
     all_matches = []
     for r in h2h_table.find_all("tr", id=re.compile(r"tr3_\d+")):
-        if (d := get_match_details_from_row_of(r, score_class_selector='fscore_3', source_table_type='h2h')):
+        if (d := get_match_details_from_row_of(r, score_class_selector='fscore_3', source_table_type='h2h', odds_map=odds_map)):
             if not league_id or (d.get('league_id_hist') and d.get('league_id_hist') == str(league_id)):
                 all_matches.append(d)
     if not all_matches: return results
@@ -698,11 +774,11 @@ def extract_h2h_data_of(soup, home_name, away_name, league_id=None):
             break
     return results
 
-def extract_comparative_match_of(soup, table_id, main_team, opponent, league_id, is_home_table):
+def extract_comparative_match_of(soup, table_id, main_team, opponent, league_id, is_home_table, odds_map=None):
     if not opponent or opponent == "N/A" or not main_team or not (table := soup.find("table", id=table_id)): return None
     score_selector = 'fscore_1' if is_home_table else 'fscore_2'
     for row in table.find_all("tr", id=re.compile(rf"tr{table_id[-1]}_\d+")):
-        if not (details := get_match_details_from_row_of(row, score_class_selector=score_selector, source_table_type='hist')): continue
+        if not (details := get_match_details_from_row_of(row, score_class_selector=score_selector, source_table_type='hist', odds_map=odds_map)): continue
         if league_id and details.get('league_id_hist') and details.get('league_id_hist') != str(league_id): continue
         h, a = details.get('home','').lower(), details.get('away','').lower()
         main, opp = main_team.lower(), opponent.lower()
@@ -737,11 +813,15 @@ def analizar_partido_completo(match_id: str):
         away_ou_stats = extract_over_under_stats_from_div_of(soup_completo, 'away')
         key_match_id_rival_a, rival_a_id, rival_a_name = get_rival_a_for_original_h2h_of(soup_completo, league_id)
         _, rival_b_id, rival_b_name = get_rival_b_for_original_h2h_of(soup_completo, league_id)
-        last_home_match = extract_last_match_in_league_of(soup_completo, "table_v1", home_name, league_id, True)
-        last_away_match = extract_last_match_in_league_of(soup_completo, "table_v2", away_name, league_id, False)
-        h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None)
-        comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True)
-        comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False)
+        
+        # Extraer mapa de cuotas históricas
+        odds_map = extract_vs_odds(soup_completo)
+        
+        last_home_match = extract_last_match_in_league_of(soup_completo, "table_v1", home_name, league_id, True, odds_map)
+        last_away_match = extract_last_match_in_league_of(soup_completo, "table_v2", away_name, league_id, False, odds_map)
+        h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None, odds_map)
+        comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True, odds_map)
+        comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False, odds_map)
         main_match_odds_data = extract_bet365_initial_odds_of(soup_completo, main_match_id)
         final_score, _ = extract_final_score_of(soup_completo)
         details_h2h_col3 = get_h2h_details_for_original_logic_of(
