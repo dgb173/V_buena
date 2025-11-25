@@ -633,6 +633,35 @@ def _render_matches_dashboard(page_mode='upcoming', page_title='Partidos'):
         upcoming_matches=upcoming_matches,
         finished_matches=finished_matches,
         handicap_filter=handicap_filter,
+        goal_line_filter=goal_line_filter,
+        handicap_options=handicap_options,
+        goal_line_options=goal_line_options,
+        page_mode=page_mode,
+        page_title=page_title,
+        error=error_msg,
+    )
+
+@app.route('/')
+def index():
+    return redirect(url_for('mostrar_estudio'))
+
+
+@app.route('/resultados')
+def resultados():
+    print("Recibida petición para Partidos Finalizados...")
+    return _render_matches_dashboard('finished', 'Resultados Finalizados')
+
+
+@app.route('/proximos')
+def proximos():
+    print("Recibida petición para /proximos")
+    return _render_matches_dashboard('upcoming', 'Próximos Partidos')
+
+@app.route('/api/matches')
+def api_matches():
+    try:
+        offset = int(request.args.get('offset', 0))
+        limit = int(request.args.get('limit', 5))
         limit = min(limit, 50)
         matches = asyncio.run(get_main_page_matches_async(limit, offset, request.args.get('handicap'), request.args.get('ou')))
         return jsonify({'matches': matches})
