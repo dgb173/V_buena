@@ -938,14 +938,15 @@ def _load_main_match_soup(main_match_id: str):
     response.raise_for_status()
     return BeautifulSoup(response.text, "lxml")
 
-def analizar_partido_completo(match_id: str):
+def analizar_partido_completo(match_id: str, force_refresh: bool = False):
     main_match_id = "".join(filter(str.isdigit, str(match_id)))
     if not main_match_id:
         return {"error": "ID de partido inválido."}
 
-    cached_payload = _get_cached_analysis(main_match_id)
-    if cached_payload:
-        return cached_payload
+    if not force_refresh:
+        cached_payload = _get_cached_analysis(main_match_id)
+        if cached_payload:
+            return cached_payload
 
     start_time = time.time()
     try:

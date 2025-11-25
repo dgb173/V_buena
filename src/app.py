@@ -776,8 +776,9 @@ def api_estudio_panel(match_id):
     Devuelve el panel de análisis renderizado para actualizar la vista sin recargar la página.
     """
     start_time = time.time()
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
     try:
-        datos_partido = analizar_partido_completo(match_id)
+        datos_partido = analizar_partido_completo(match_id, force_refresh=force_refresh)
         if not datos_partido or "error" in datos_partido:
             error_message = (datos_partido or {}).get('error', 'No se pudo analizar el partido.')
             return jsonify({'error': error_message}), 500

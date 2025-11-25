@@ -425,7 +425,8 @@
                 panelWrapper.innerHTML = `<div class="panel-loading">Analizando ID ${cleanId}...</div>`;
 
                 try {
-                    const response = await fetch(`/api/estudio_panel/${cleanId}`, { signal: currentController.signal });
+                    const url = `/api/estudio_panel/${cleanId}${options.force ? '?refresh=true' : ''}`;
+                    const response = await fetch(url, { signal: currentController.signal });
                     const payload = await response.json().catch(() => ({}));
                     if (!response.ok || payload.error) {
                         throw new Error(payload.error || 'No se pudo cargar el análisis.');
