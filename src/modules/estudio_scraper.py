@@ -248,7 +248,7 @@ def _analizar_precedente_goles(precedente_data, goles_actual_num):
     except (ValueError, TypeError):
         return "<li><span class='score-value'>Goles:</span> No se pudo procesar el resultado del precedente.</li>"
 
-def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name):
+def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name, recent_home_matches=None, recent_away_matches=None):
     ah_actual_str = format_ah_as_decimal_string_of(main_odds.get('ah_linea_raw', '-'))
     ah_actual_num = parse_ah_to_number_of(ah_actual_str)
     goles_actual_num = parse_ah_to_number_of(main_odds.get('goals_linea_raw', '-'))
@@ -305,12 +305,38 @@ def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name)
             f"  <ul style='margin: 5px 0 0 20px; padding-left: 0;'>{sintesis_ah_general}{sintesis_goles_general}</ul>"
             f"</div>"
         )
+        
+    # --- NUEVA SECCIÓN: LISTADO DE ÚLTIMOS PARTIDOS ---
+    listado_html = ""
+    if recent_home_matches or recent_away_matches:
+        listado_html += "<div style='margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;'>"
+        
+        if recent_home_matches:
+            listado_html += f"<p><strong>🏠 Últimos partidos de {home_name} en Casa:</strong></p><ul style='font-size: 0.9em;'>"
+            for m in recent_home_matches:
+                rival = m.get('away')
+                score = m.get('score')
+                ah = m.get('ahLine_raw')
+                listado_html += f"<li>vs {rival} ({score}) - AH: {ah}</li>"
+            listado_html += "</ul>"
+            
+        if recent_away_matches:
+            listado_html += f"<p><strong>✈️ Últimos partidos de {away_name} Fuera:</strong></p><ul style='font-size: 0.9em;'>"
+            for m in recent_away_matches:
+                rival = m.get('home')
+                score = m.get('score')
+                ah = m.get('ahLine_raw')
+                listado_html += f"<li>vs {rival} ({score}) - AH: {ah}</li>"
+            listado_html += "</ul>"
+            
+        listado_html += "</div>"
 
     return f"""
     <div style="border-left: 4px solid #1E90FF; padding: 12px 15px; margin-top: 15px; background-color: #f0f2f6; border-radius: 5px; font-size: 0.95em;">
         {titulo_html}
         {analisis_estadio_html}
         {analisis_general_html}
+        {listado_html}
     </div>
     """
 
@@ -567,22 +593,46 @@ def _parse_date_ddmmyyyy(d: str) -> tuple:
     
     return (1900, 1, 1)
 
-def extract_last_match_in_league_of(soup, table_id, team_name, league_id, is_home_game, odds_map=None):
-    if not soup or not (table := soup.find("table", id=table_id)): return None
-    candidate_matches = []
+def extract_recent_matches(soup, table_id, team_name, league_id, is_home_game, odds_map=None, limit=5):
+    """
+    Extrae una lista de los últimos partidos del equipo en esa condición (Local/Visitante).
+    Retorna una lista de diccionarios con detalles del partido.
+    """
+    if not soup or not (table := soup.find("table", id=table_id)): return []
+    matches = []
     score_selector = 'fscore_1' if is_home_game else 'fscore_2'
+    
+    # Iterar sobre las filas de la tabla
     for row in table.find_all("tr", id=re.compile(rf"tr{table_id[-1]}_\d+")):
         if not (details := get_match_details_from_row_of(row, score_class_selector=score_selector, source_table_type='hist', odds_map=odds_map)):
             continue
-        if league_id and details.get("league_id_hist") != str(league_id):
-            continue
+            
+        # Filtrar por liga si es necesario (aunque el usuario pidió "todos", a veces es mejor filtrar)
+        # El usuario dijo "todos", así que quizás no filtramos por liga aquí, o lo hacemos opcional.
+        # Pero mantengamos la lógica de "Home vs Home" y "Away vs Away" estricta.
+        
         is_team_home = team_name.lower() in details.get('home', '').lower()
         is_team_away = team_name.lower() in details.get('away', '').lower()
+        
+        # Condición: El equipo analizado debe jugar en la condición especificada (Local o Visitante)
         if (is_home_game and is_team_home) or (not is_home_game and is_team_away):
-            candidate_matches.append(details)
-    if not candidate_matches: return None
-    candidate_matches.sort(key=lambda x: _parse_date_ddmmyyyy(x.get('date', '')), reverse=True)
-    last_match = candidate_matches[0]
+            matches.append(details)
+            
+    # Ordenar por fecha descendente
+    matches.sort(key=lambda x: _parse_date_ddmmyyyy(x.get('date', '')), reverse=True)
+    
+    return matches[:limit]
+
+def extract_last_match_in_league_of(soup, table_id, team_name, league_id, is_home_game, odds_map=None):
+    # Reutilizamos la nueva función pero limitamos a 1 y filtramos por liga si se pide
+    matches = extract_recent_matches(soup, table_id, team_name, league_id, is_home_game, odds_map, limit=20)
+    
+    if league_id:
+        matches = [m for m in matches if m.get("league_id_hist") == str(league_id)]
+        
+    if not matches: return None
+    
+    last_match = matches[0]
     return {
         "date": last_match.get('date', 'N/A'), "home_team": last_match.get('home'),
         "away_team": last_match.get('away'), "score": last_match.get('score_raw', 'N/A').replace('-', ':'),
@@ -829,6 +879,11 @@ def analizar_partido_completo(match_id: str):
         
         last_home_match = extract_last_match_in_league_of(soup_completo, "table_v1", home_name, league_id, True, odds_map)
         last_away_match = extract_last_match_in_league_of(soup_completo, "table_v2", away_name, league_id, False, odds_map)
+        
+        # Extraer listas de partidos recientes (Home vs Home, Away vs Away)
+        recent_home_matches = extract_recent_matches(soup_completo, "table_v1", home_name, None, True, odds_map, limit=10)
+        recent_away_matches = extract_recent_matches(soup_completo, "table_v2", away_name, None, False, odds_map, limit=10)
+        
         h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None, odds_map)
         comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True, odds_map)
         comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False, odds_map)
@@ -840,7 +895,7 @@ def analizar_partido_completo(match_id: str):
     except Exception as exc:
         return {"error": f"Error durante el análisis: {exc}"}
 
-    market_analysis_html = generar_analisis_completo_mercado(main_match_odds_data, h2h_data, home_name, away_name)
+    market_analysis_html = generar_analisis_completo_mercado(main_match_odds_data, h2h_data, home_name, away_name, recent_home_matches, recent_away_matches)
 
     def get_stats_rows(match_id_value):
         if not match_id_value:
