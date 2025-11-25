@@ -307,38 +307,102 @@ def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name,
         )
         
     # --- NUEVA SECCIÓN: LISTADO DE ÚLTIMOS PARTIDOS ---
-    listado_html = ""
-    if recent_home_matches or recent_away_matches:
-        listado_html += "<div style='margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;'>"
-        
-        if recent_home_matches:
-            listado_html += f"<p><strong>🏠 Últimos partidos de {home_name} en Casa:</strong></p><ul style='font-size: 0.9em;'>"
-            for m in recent_home_matches:
-                rival = m.get('away')
-                score = m.get('score')
-                ah = m.get('ahLine_raw')
-                listado_html += f"<li>vs {rival} ({score}) - AH: {ah}</li>"
-            listado_html += "</ul>"
-            
-        if recent_away_matches:
-            listado_html += f"<p><strong>✈️ Últimos partidos de {away_name} Fuera:</strong></p><ul style='font-size: 0.9em;'>"
-            for m in recent_away_matches:
-                rival = m.get('home')
-                score = m.get('score')
-                ah = m.get('ahLine_raw')
-                listado_html += f"<li>vs {rival} ({score}) - AH: {ah}</li>"
-            listado_html += "</ul>"
-            
-        listado_html += "</div>"
+    listado_html = _build_historical_matches_list_html(recent_home_matches, recent_away_matches, home_name, away_name)
 
     return f"""
     <div style="border-left: 4px solid #1E90FF; padding: 12px 15px; margin-top: 15px; background-color: #f0f2f6; border-radius: 5px; font-size: 0.95em;">
         {titulo_html}
         {analisis_estadio_html}
         {analisis_general_html}
-        {listado_html}
     </div>
+    {listado_html}
     """
+
+def _build_historical_matches_list_html(home_matches, away_matches, home_team_name, away_team_name):
+    if not home_matches and not away_matches:
+        return ""
+
+    html = "<div style='margin-top: 20px;'>"
+
+    def build_table(matches, title, team_name):
+        if not matches: return ""
+        
+        table_html = f"""
+        <div style='margin-bottom: 20px;'>
+            <h4 style='margin-bottom: 10px; color: #333; border-bottom: 2px solid #ddd; padding-bottom: 5px;'>
+                {title} <span style='color: #666; font-size: 0.8em;'>({team_name})</span>
+            </h4>
+            <div class='table-responsive'>
+                <table class='table table-sm table-striped table-hover' style='font-size: 0.85em;'>
+                    <thead class='table-dark'>
+                        <tr>
+                            <th>Liga/Copa</th>
+                            <th>Fecha</th>
+                            <th>Local</th>
+                            <th>Marcador (HT)</th>
+                            <th>Visitante</th>
+                            <th>AH Inicial</th>
+                            <th>Línea Gol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        
+        for m in matches:
+            date = m.get('date', '-')
+            league = m.get('league_id_hist', '-') # O el nombre si lo tuviéramos mejor
+            # A veces el nombre de la liga viene en el title del td
+            
+            home = m.get('home', '-')
+            away = m.get('away', '-')
+            score = m.get('score', '-')
+            score_raw = m.get('score_raw', '')
+            
+            # Intentar formatear el score con HT si está disponible en score_raw o similar
+            # En get_match_details_from_row_of, score_raw suele ser "1-0"
+            # Si queremos HT, necesitaríamos extraerlo del span hscore_1/2 si existe.
+            # Por ahora usaremos lo que tenemos.
+            
+            ah = m.get('ahLine', '-')
+            # Goal line no lo tenemos parseado explícitamente en get_match_details_from_row_of
+            # Intentaremos usar un valor genérico o N/A por ahora, ya que no está en la tabla standard
+            ou = m.get('ouLine', 'N/A') 
+            
+            # Resaltar el equipo analizado
+            home_style = "font-weight:bold;" if team_name.lower() in home.lower() else ""
+            away_style = "font-weight:bold;" if team_name.lower() in away.lower() else ""
+            
+            # Colores para AH y OU si tuviéramos resultados (W/L)
+            # Por ahora texto plano
+            
+            table_html += f"""
+                        <tr>
+                            <td>{league}</td>
+                            <td>{date}</td>
+                            <td style='{home_style}'>{home}</td>
+                            <td style='text-align:center;'>{score}</td>
+                            <td style='{away_style}'>{away}</td>
+                            <td style='text-align:center; color: #d63384; font-weight:bold;'>{ah}</td>
+                            <td style='text-align:center; color: #d63384; font-weight:bold;'>{ou}</td>
+                        </tr>
+            """
+        
+        table_html += """
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+        return table_html
+
+    if home_matches:
+        html += build_table(home_matches, "🏠 Últimos Partidos en Casa", home_team_name)
+    
+    if away_matches:
+        html += build_table(away_matches, "✈️ Últimos Partidos Fuera", away_team_name)
+
+    html += "</div>"
+    return html
 
 # --- FUNCIONES DE EXTRACCIÓN DE DATOS ---
 def extract_vs_odds(soup):
@@ -430,11 +494,31 @@ def get_match_details_from_row_of(row_element, score_class_selector='score', sou
                 ah_line_raw = odds_map[match_index]
 
         ah_line_fmt = format_ah_as_decimal_string_of(ah_line_raw) if ah_line_raw not in ['', '-'] else '-'
+        
+        # Intentar extraer Goal Line (O/U)
+        # Basado en analisis.txt, la columna O/U parece estar después de AH Away
+        # Indices típicos: Home(2), Score(3), Away(4), ... AH(11) ...
+        # En analisis.txt:
+        # td[10] -> AH Home Odds
+        # td[11] -> AH Line
+        # td[12] -> AH Away Odds
+        # td[13] -> AH Result (W/L)
+        # td[14] -> OU Result (U/O) ?? No, wait.
+        
+        # Vamos a intentar extraer de la celda siguiente a AH si existe
+        ou_line_raw = 'N/A'
+        if len(cells) > 12:
+             # A veces la linea de gol esta en otra columna o data attribute
+             # Por ahora, si no la encontramos explícitamente, dejaremos N/A o intentaremos buscar en data-o
+             # En analisis.txt, la celda 12 (indice 12) tiene data-o="0.90" (Away Odds?)
+             pass
+
         return {
             'date': date_txt, 'home': home, 'away': away, 'score': score_fmt,
             'score_raw': score_raw, 'ahLine': ah_line_fmt, 'ahLine_raw': ah_line_raw or '-',
+            'ouLine': ou_line_raw, # Placeholder por ahora
             'matchIndex': row_element.get('index'), 'vs': row_element.get('vs'),
-            'league_id_hist': row_element.get('name')
+            'league_id_hist': row_element.get('title') or row_element.get('name') # Usar title como nombre de liga si existe
         }
     except Exception:
         return None
