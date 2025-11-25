@@ -493,6 +493,10 @@ def get_h2h_details_for_original_logic_of(key_match_id, rival_a_id, rival_b_id, 
         response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "lxml")
+        
+        # Extraer odds del script Vs_hOdds
+        odds_map = extract_vs_odds(soup)
+        
     except Exception as e:
         return {"status": "error", "resultado": f"N/A (Error Requests en H2H Col3: {type(e).__name__})"}
 
@@ -522,11 +526,17 @@ def get_h2h_details_for_original_logic_of(key_match_id, rival_a_id, rival_b_id, 
             handicap_raw = "N/A"
             if len(tds) > 11:
                 cell = tds[11]
-                handicap_raw = (cell.get("data-o") or cell.text).strip() or "N/A"
+                handicap_raw = (cell.get("data-o") or cell.text).strip()
+            
+            # Fallback con Vs_hOdds
+            if (not handicap_raw or handicap_raw == '-' or handicap_raw == 'N/A'):
+                match_idx = row.get('index')
+                if match_idx and match_idx in odds_map:
+                    handicap_raw = odds_map[match_idx]
             
             return {
                 "status": "found", "goles_home": g_h.strip(), "goles_away": g_a.strip(),
-                "handicap": handicap_raw, "match_id": row.get('index'),
+                "handicap": handicap_raw or "N/A", "match_id": row.get('index'),
                 "h2h_home_team_name": links[0].text.strip(), "h2h_away_team_name": links[1].text.strip()
             }
     return {"status": "not_found", "resultado": f"H2H directo no encontrado para {rival_a_name} vs {rival_b_name}."}
