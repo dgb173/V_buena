@@ -209,6 +209,24 @@
                     <h6 class="mb-0">Próximos partidos</h6>
                     <span class="badge bg-success">{{ upcoming_matches|length }}</span>
                 </div>
+                <div class="px-3 pb-2">
+                    <form action="/estudio" method="get" class="d-flex flex-column gap-2">
+                        {% if selected_match_id %}
+                        <input type="hidden" name="match_id" value="{{ selected_match_id }}">
+                        {% endif %}
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="text" class="form-control form-control-sm" name="handicap"
+                                    placeholder="AH (ej: -0.5)" value="{{ current_handicap or '' }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control form-control-sm" name="ou"
+                                    placeholder="O/U (ej: 2.5)" value="{{ current_ou or '' }}">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Aplicar Filtros</button>
+                    </form>
+                </div>
                 <div class="sidebar-table-wrapper">
                     <table class="table table-sm align-middle sidebar-table">
                         <thead>

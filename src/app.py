@@ -204,7 +204,7 @@ def _build_goal_line_options_from_lists(match_lists):
         return sorted(values)
 
 
-def _filter_and_slice_matches(section, limit=None, offset=0, handicap_filter=None, goal_line_filter=None, sort_desc=False):
+def _filter_and_slice_matches(section, limit=None, offset=0, handicap_filter=None, goal_line_filter=None, sort_desc=False, min_time=None):
     data = load_data_from_file()
     matches = data.get(section, [])
     prepared = []
@@ -213,6 +213,10 @@ def _filter_and_slice_matches(section, limit=None, offset=0, handicap_filter=Non
         parsed_time = _parse_time_obj(entry.get('time_obj'))
         entry['_sort_time'] = parsed_time or datetime.datetime.min
         _ensure_time_string(entry, parsed_time)
+        
+        if min_time and parsed_time and parsed_time < min_time:
+            continue
+            
         prepared.append(entry)
 
     handicap_predicate = _build_handicap_filter_predicate(handicap_filter)
@@ -719,9 +723,26 @@ def mostrar_estudio(match_id):
     """
     print(f"Recibida petición para el estudio del partido ID: {match_id}")
 
-    dataset = load_data_from_file()
-    upcoming_matches = (dataset.get('upcoming_matches') or [])[:20]
-    finished_matches = (dataset.get('finished_matches') or [])[:20]
+    handicap_filter = request.args.get('handicap')
+    goal_line_filter = request.args.get('ou')
+
+    # Filter upcoming matches: apply filters and ensure they are in the future
+    upcoming_matches = _filter_and_slice_matches(
+        'upcoming_matches',
+        limit=50,
+        handicap_filter=handicap_filter,
+        goal_line_filter=goal_line_filter,
+        min_time=datetime.datetime.utcnow()
+    )
+
+    # Filter finished matches: apply filters
+    finished_matches = _filter_and_slice_matches(
+        'finished_matches',
+        limit=50,
+        handicap_filter=handicap_filter,
+        goal_line_filter=goal_line_filter,
+        sort_desc=True
+    )
 
     requested_match_id = match_id or request.args.get('match_id')
     target_match_id = requested_match_id or _select_default_match_id(upcoming_matches, finished_matches)
@@ -744,7 +765,10 @@ def mostrar_estudio(match_id):
         format_ah=format_ah_as_decimal_string_of,
         upcoming_matches=upcoming_matches,
         finished_matches=finished_matches,
-        selected_match_id=target_match_id
+        finished_matches=finished_matches,
+        selected_match_id=target_match_id,
+        current_handicap=handicap_filter,
+        current_ou=goal_line_filter
     )
 
 
