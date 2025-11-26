@@ -86,6 +86,64 @@
         .analysis-panel .market-analysis-wrapper table {
             width: 100%;
         }
+
+        @media (max-width: 768px) {
+            .historical-matches-container table {
+                font-size: 0.7rem !important;
+            }
+
+            .historical-matches-container .card-header h6 {
+                font-size: 0.9rem;
+            }
+
+            .historical-matches-container .badge {
+                font-size: 0.7rem;
+            }
+
+            /* Mobile optimizations for 3-col and 2-col layouts */
+            .immediate-history-row .card-body,
+            .indirect-comparison-row .card-body {
+                padding: 0.25rem !important;
+            }
+
+            .immediate-history-row .card-title,
+            .immediate-history-row .card-subtitle,
+            .indirect-comparison-row .card-title,
+            .indirect-comparison-row .card-subtitle {
+                font-size: 0.7rem !important;
+                margin-bottom: 0.25rem !important;
+            }
+
+            .immediate-history-row p,
+            .indirect-comparison-row p {
+                font-size: 0.65rem !important;
+                margin-bottom: 0.15rem !important;
+                line-height: 1.2;
+            }
+
+            .immediate-history-row .stat-table td,
+            .indirect-comparison-row .stat-table td {
+                font-size: 0.6rem !important;
+                padding: 1px !important;
+            }
+
+            .immediate-history-row .stat-table td.label,
+            .indirect-comparison-row .stat-table td.label {
+                min-width: auto !important;
+                width: 40%;
+            }
+
+            /* Hide non-essential elements if needed or adjust spacing */
+            .immediate-history-row .card-header,
+            .indirect-comparison-row .card-header {
+                padding: 0.25rem 0.5rem;
+            }
+
+            .immediate-history-row h5,
+            .indirect-comparison-row h5 {
+                font-size: 0.75rem;
+            }
+        }
     </style>
     {% macro render_stat_rows(rows) -%}
     {% for stat in rows %}
@@ -254,8 +312,8 @@
                     </div>
                     <hr class="my-4">
                     <h5 class="mb-3 text-muted">Historial inmediato</h5>
-                    <div class="row">
-                        <div class="col-lg-4 mb-3">
+                    <div class="row immediate-history-row">
+                        <div class="col-4 mb-3">
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h5 class="card-title">Último <span class="home-color">{{ data.home_name }}</span>
@@ -269,7 +327,7 @@
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap_line_raw) }}</span>
                                     </p>
                                     {% if data.last_home_match.stats %}
-                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                    <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
                                         {{ render_stat_rows(data.last_home_match.stats) }}
                                     </table>
@@ -279,7 +337,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-4 mb-3">
+                        <div class="col-4 mb-3">
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h5 class="card-title">Último <span class="away-color">{{ data.away_name }}</span>
@@ -293,7 +351,7 @@
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap_line_raw) }}</span>
                                     </p>
                                     {% if data.last_away_match.stats %}
-                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                    <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
                                         {{ render_stat_rows(data.last_away_match.stats) }}
                                     </table>
@@ -302,7 +360,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-4 mb-3">
+                        <div class="col-4 mb-3">
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h5 class="card-title">🧭 H2H Rivales (Col3)</h5>
@@ -315,7 +373,7 @@
                                             class="away-color">{{ res.h2h_away_team_name }}</span></p>
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap) }}</span></p>
                                     {% if data.h2h_col3.stats %}
-                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                    <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
                                         {{ render_stat_rows(data.h2h_col3.stats) }}
                                     </table>
@@ -353,8 +411,8 @@
                                 <div id="collapseFour" class="accordion-collapse collapse show"
                                     aria-labelledby="headingFour" data-bs-parent="#analysisAccordion">
                                     <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
+                                        <div class="row indirect-comparison-row">
+                                            <div class="col-6 mb-3">
                                                 <div class="card h-100">
                                                     <div class="card-header">
                                                         <h5 class="card-subtitle"><span class="home-color">{{
@@ -372,7 +430,8 @@
                                                         <p>🏟️ <b>Localía de '{{ data.home_name }}':</b> <span
                                                                 class="data-highlight">{{ res.localia }}</span></p>
                                                         {% if data.comp_L_vs_UV_A.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                        <h6 class="mt-3 text-muted" style="font-size: 0.8em;">
+                                                            Estadísticas</h6>
                                                         <table class="stat-table">
                                                             {{ render_stat_rows(data.comp_L_vs_UV_A.stats) }}
                                                         </table>
@@ -382,7 +441,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
+                                            <div class="col-6 mb-3">
                                                 <div class="card h-100">
                                                     <div class="card-header">
                                                         <h5 class="card-subtitle"><span class="away-color">{{
@@ -400,7 +459,8 @@
                                                         <p>🏟️ <b>Localía de '{{ data.away_name }}':</b> <span
                                                                 class="data-highlight">{{ res.localia }}</span></p>
                                                         {% if data.comp_V_vs_UL_H.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                        <h6 class="mt-3 text-muted" style="font-size: 0.8em;">
+                                                            Estadísticas</h6>
                                                         <table class="stat-table">
                                                             {{ render_stat_rows(data.comp_V_vs_UL_H.stats) }}
                                                         </table>
@@ -483,24 +543,15 @@
 
 
 
-                            <!-- Historial de Partidos -->
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="headingSeven">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#collapseSeven" aria-expanded="false"
-                                        aria-controls="collapseSeven">
-                                        📅 Historial de Partidos (Casa vs Fuera)
-                                    </button>
-                                </h2>
-                                <div id="collapseSeven" class="accordion-collapse collapse"
-                                    aria-labelledby="headingSeven" data-bs-parent="#analysisAccordion">
-                                    <div class="accordion-body">
-                                        {% if data.historical_matches_html %}
-                                        {{ data.historical_matches_html | safe }}
-                                        {% else %}
-                                        <p class="text-muted mb-0">No hay datos históricos disponibles.</p>
-                                        {% endif %}
-                                    </div>
+                            <!-- Historial de Partidos (Siempre visible) -->
+                            <div class="mt-4">
+                                <h5 class="mb-3 text-muted">📅 Historial de Partidos (Casa vs Fuera)</h5>
+                                <div class="historical-matches-container">
+                                    {% if data.historical_matches_html %}
+                                    {{ data.historical_matches_html | safe }}
+                                    {% else %}
+                                    <p class="text-muted mb-0">No hay datos históricos disponibles.</p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

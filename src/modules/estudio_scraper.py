@@ -391,6 +391,148 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
     html += "</div></div>"
     return html
 
+def _calculate_stats_for_matches(matches, team_name):
+    stats = {'W': 0, 'D': 0, 'L': 0, 'O': 0, 'U': 0, 'Push': 0, 'HasOU': False}
+    for m in matches:
+        score_raw = m.get('score_raw', '')
+        if not score_raw or '-' not in score_raw: continue
+        try:
+            parts = score_raw.split('-')
+            h_s = int(parts[0])
+            a_s = int(parts[1])
+        except:
+            continue
+            
+        is_home_team = team_name.lower() in m.get('home', '').lower()
+        
+        # W/D/L
+        if is_home_team:
+            if h_s > a_s: stats['W'] += 1
+            elif h_s == a_s: stats['D'] += 1
+            else: stats['L'] += 1
+        else:
+            if a_s > h_s: stats['W'] += 1
+            elif a_s == h_s: stats['D'] += 1
+            else: stats['L'] += 1
+            
+        # O/U - Requires ouLine to be present and numeric
+        ou_line_str = m.get('ouLine', 'N/A')
+        if ou_line_str and ou_line_str not in ['-', 'N/A', '?']:
+            try:
+                line = float(ou_line_str)
+                total = h_s + a_s
+                stats['HasOU'] = True
+                if total > line: stats['O'] += 1
+                elif total < line: stats['U'] += 1
+                else: stats['Push'] += 1
+            except:
+                pass
+                
+    return stats
+
+def _build_historical_matches_list_html(home_matches, away_matches, home_team_name, away_team_name):
+    if not home_matches and not away_matches:
+        return ""
+
+    html = "<div class='historical-matches-container'><div class='row'>"
+
+    def build_table(matches, title, team_name, is_home_context):
+        if not matches: return ""
+        
+        stats = _calculate_stats_for_matches(matches, team_name)
+        
+        table_html = f"""
+        <div class="col-lg-6">
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><strong>{title}</strong> <small class="text-muted">({team_name})</small></h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Liga</th>
+                                <th>Fecha</th>
+                                <th class="text-end">Local</th>
+                                <th class="text-center">Res</th>
+                                <th>Visitante</th>
+                                <th class="text-center">AH</th>
+                                <th class="text-center">O/U</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        """
+        
+        for m in matches:
+            date = m.get('date', '-')
+            league = m.get('league_id_hist', '-')
+            home = m.get('home', '-')
+            away = m.get('away', '-')
+            score = m.get('score', '-')
+            ah = m.get('ahLine', '-')
+            ou = m.get('ouLine', '-')
+            
+            # Highlight logic
+            home_class = "fw-bold text-primary" if team_name.lower() in home.lower() else ""
+            away_class = "fw-bold text-primary" if team_name.lower() in away.lower() else ""
+            
+            # Score coloring
+            score_style = "font-weight:bold;"
+            
+            table_html += f"""
+                        <tr>
+                            <td>{league}</td>
+                            <td>{date}</td>
+                            <td class="text-end {home_class}">{home}</td>
+                            <td class="text-center" style="{score_style}">{score}</td>
+                            <td class="{away_class}">{away}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{ah}</span></td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{ou}</span></td>
+                        </tr>
+            """
+        
+        table_html += """
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white">
+                    <div class="d-flex justify-content-around text-center" style="font-size: 0.9rem;">
+        """
+        
+        # Add Stats
+        table_html += f"""
+                        <div>
+                            <span class="text-success fw-bold">V: {stats['W']}</span> | 
+                            <span class="text-muted fw-bold">E: {stats['D']}</span> | 
+                            <span class="text-danger fw-bold">D: {stats['L']}</span>
+                        </div>
+        """
+        
+        if stats['HasOU']:
+             table_html += f"""
+                        <div>
+                            <span class="text-primary fw-bold">O: {stats['O']}</span> | 
+                            <span class="text-secondary fw-bold">U: {stats['U']}</span>
+                        </div>
+            """
+            
+        table_html += """
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+        return table_html
+
+    if home_matches:
+        html += build_table(home_matches, "Partidos en Casa", home_team_name, True)
+    
+    if away_matches:
+        html += build_table(away_matches, "Partidos Fuera", away_team_name, False)
+
+    html += "</div></div>"
+    return html
+
 # --- FUNCIONES DE EXTRACCIÓN DE DATOS ---
 def extract_vs_odds(soup):
     """
@@ -953,8 +1095,8 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
         last_away_match = extract_last_match_in_league_of(soup_completo, "table_v2", away_name, league_id, False, odds_map)
         
         # Extraer listas de partidos recientes (Home vs Home, Away vs Away)
-        recent_home_matches = extract_recent_matches(soup_completo, "table_v1", home_name, None, True, odds_map, limit=30)
-        recent_away_matches = extract_recent_matches(soup_completo, "table_v2", away_name, None, False, odds_map, limit=30)
+        recent_home_matches = extract_recent_matches(soup_completo, "table_v1", home_name, None, True, odds_map, limit=10)
+        recent_away_matches = extract_recent_matches(soup_completo, "table_v2", away_name, None, False, odds_map, limit=10)
         
         h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None, odds_map)
         comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True, odds_map)
