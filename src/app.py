@@ -731,10 +731,8 @@ def mostrar_estudio(match_id):
         limit=50,
         handicap_filter=handicap_filter,
         goal_line_filter=goal_line_filter,
-        # min_time=datetime.datetime.utcnow()
+        min_time=datetime.datetime.utcnow()
     )
-    with open('debug_matches.txt', 'w') as f:
-        f.write(f"DEBUG: Upcoming matches count: {len(upcoming_matches)}\n")
 
     # Filter finished matches: apply filters
     finished_matches = _filter_and_slice_matches(

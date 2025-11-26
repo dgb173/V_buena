@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --sidebar-width: 450px;
+            --sidebar-width: 360px;
             --card-bg: #ffffff;
             --card-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
         }
@@ -41,7 +41,7 @@
         .sidebar {
             top: 0;
             left: 0;
-            width: 450px;
+            width: 360px;
             height: 100vh;
             transform: translateX(-100%);
             /* Hidden to the left */
@@ -240,17 +240,16 @@
                         </thead>
                         <tbody>
                             {% for match in upcoming_matches %}
-                            <tr data-match-id="{{ match['id'] }}"
-                                class="{% if match['id'] == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match['time'] }}</td>
+                            <tr data-match-id="{{ match.id }}"
+                                class="{% if match.id == selected_match_id %}active{% endif %}">
+                                <td class="text-nowrap">{{ match.time }}</td>
                                 <td>
-                                    <span class="team-name">{{ match['home_team'] }}</span>
+                                    <span class="team-name">{{ match.home_team }}</span>
                                     <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match['away_team'] }}</span>
+                                    <span class="team-name">{{ match.away_team }}</span>
                                 </td>
-                                <td><span class="odds-badge handicap-badge">{{ match['handicap'] or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match['goal_line'] or match.get('goalLine')
-                                        or '-'
+                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
                                         }}</span></td>
                                 <td class="text-center">
                                     <button type="button" class="icon-button sidebar-analyze-btn"
@@ -289,19 +288,17 @@
                         </thead>
                         <tbody>
                             {% for match in finished_matches %}
-                            <tr data-match-id="{{ match['id'] }}"
-                                class="{% if match['id'] == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match['time'] }}</td>
+                            <tr data-match-id="{{ match.id }}"
+                                class="{% if match.id == selected_match_id %}active{% endif %}">
+                                <td class="text-nowrap">{{ match.time }}</td>
                                 <td>
-                                    <span class="team-name">{{ match['home_team'] }}</span>
+                                    <span class="team-name">{{ match.home_team }}</span>
                                     <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match['away_team'] }}</span>
+                                    <span class="team-name">{{ match.away_team }}</span>
                                 </td>
-                                <td class="text-center"><span class="badge bg-dark">{{ match.get('score') or '-'
-                                        }}</span></td>
-                                <td><span class="odds-badge handicap-badge">{{ match['handicap'] or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match['goal_line'] or match.get('goalLine')
-                                        or '-'
+                                <td class="text-center"><span class="badge bg-dark">{{ match.score or '-' }}</span></td>
+                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
                                         }}</span></td>
                                 <td class="text-center">
                                     <button type="button" class="icon-button sidebar-analyze-btn"
