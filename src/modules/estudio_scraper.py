@@ -318,30 +318,31 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
     if not home_matches and not away_matches:
         return ""
 
-    html = "<div class='historical-matches-container'>"
+    html = "<div class='historical-matches-container'><div class='row'>"
 
     def build_table(matches, title, team_name, is_home_context):
         if not matches: return ""
         
         table_html = f"""
-        <div class="card mb-3">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><strong>{title}</strong> <small class="text-muted">({team_name})</small></h6>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Liga</th>
-                            <th>Fecha</th>
-                            <th class="text-end">Local</th>
-                            <th class="text-center">Res</th>
-                            <th>Visitante</th>
-                            <th class="text-center">AH</th>
-                            <th class="text-center">O/U</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <div class="col-lg-6">
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><strong>{title}</strong> <small class="text-muted">({team_name})</small></h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Liga</th>
+                                <th>Fecha</th>
+                                <th class="text-end">Local</th>
+                                <th class="text-center">Res</th>
+                                <th>Visitante</th>
+                                <th class="text-center">AH</th>
+                                <th class="text-center">O/U</th>
+                            </tr>
+                        </thead>
+                        <tbody>
         """
         
         for m in matches:
@@ -373,8 +374,9 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
             """
         
         table_html += """
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         """
@@ -386,7 +388,7 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
     if away_matches:
         html += build_table(away_matches, "Partidos Fuera", away_team_name, False)
 
-    html += "</div>"
+    html += "</div></div>"
     return html
 
 # --- FUNCIONES DE EXTRACCIÓN DE DATOS ---
