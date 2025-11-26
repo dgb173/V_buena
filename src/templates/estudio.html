@@ -240,16 +240,17 @@
                         </thead>
                         <tbody>
                             {% for match in upcoming_matches %}
-                            <tr data-match-id="{{ match.id }}"
-                                class="{% if match.id == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match.time }}</td>
+                            <tr data-match-id="{{ match['id'] }}"
+                                class="{% if match['id'] == selected_match_id %}active{% endif %}">
+                                <td class="text-nowrap">{{ match['time'] }}</td>
                                 <td>
-                                    <span class="team-name">{{ match.home_team }}</span>
+                                    <span class="team-name">{{ match['home_team'] }}</span>
                                     <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match.away_team }}</span>
+                                    <span class="team-name">{{ match['away_team'] }}</span>
                                 </td>
-                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
+                                <td><span class="odds-badge handicap-badge">{{ match['handicap'] or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match['goal_line'] or match.get('goalLine')
+                                        or '-'
                                         }}</span></td>
                                 <td class="text-center">
                                     <button type="button" class="icon-button sidebar-analyze-btn"
@@ -288,17 +289,19 @@
                         </thead>
                         <tbody>
                             {% for match in finished_matches %}
-                            <tr data-match-id="{{ match.id }}"
-                                class="{% if match.id == selected_match_id %}active{% endif %}">
-                                <td class="text-nowrap">{{ match.time }}</td>
+                            <tr data-match-id="{{ match['id'] }}"
+                                class="{% if match['id'] == selected_match_id %}active{% endif %}">
+                                <td class="text-nowrap">{{ match['time'] }}</td>
                                 <td>
-                                    <span class="team-name">{{ match.home_team }}</span>
+                                    <span class="team-name">{{ match['home_team'] }}</span>
                                     <small class="text-muted">vs</small>
-                                    <span class="team-name">{{ match.away_team }}</span>
+                                    <span class="team-name">{{ match['away_team'] }}</span>
                                 </td>
-                                <td class="text-center"><span class="badge bg-dark">{{ match.score or '-' }}</span></td>
-                                <td><span class="odds-badge handicap-badge">{{ match.handicap or '-' }}</span></td>
-                                <td><span class="odds-badge goal-badge">{{ match.goal_line or match.goalLine or '-'
+                                <td class="text-center"><span class="badge bg-dark">{{ match.get('score') or '-'
+                                        }}</span></td>
+                                <td><span class="odds-badge handicap-badge">{{ match['handicap'] or '-' }}</span></td>
+                                <td><span class="odds-badge goal-badge">{{ match['goal_line'] or match.get('goalLine')
+                                        or '-'
                                         }}</span></td>
                                 <td class="text-center">
                                     <button type="button" class="icon-button sidebar-analyze-btn"

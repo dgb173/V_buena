@@ -1,15 +1,24 @@
-import sys
-from pathlib import Path
+import jinja2
+import os
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).resolve().parent / 'src'))
+env = jinja2.Environment()
+
+file_path = r'src/templates/partials/analysis_panel.html'
+abs_path = os.path.abspath(file_path)
+
+print(f"Verifying syntax for: {abs_path}")
 
 try:
-    from modules import estudio_scraper
-    print("Successfully imported estudio_scraper")
-except ImportError as e:
-    print(f"ImportError: {e}")
-except SyntaxError as e:
-    print(f"SyntaxError: {e}")
+    with open(abs_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Attempt to parse the template
+    env.parse(content)
+    print("SUCCESS: Template syntax is valid.")
+    print(f"File has {len(content.splitlines())} lines.")
+
+except jinja2.TemplateSyntaxError as e:
+    print(f"ERROR: TemplateSyntaxError at line {e.lineno}")
+    print(f"Message: {e.message}")
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"ERROR: {e}")
