@@ -260,445 +260,176 @@
                             <p class="text-muted text-center">No hay datos O/U.</p>{% endif %}
                         </div>
                     </div>
-                    <!-- Análisis de Mercado -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingSix">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapseSix" aria-expanded="true" aria-controls="collapseSix">
-                                📊 Análisis de Mercado vs. Histórico H2H
-                            </button>
-                        </h2>
-                        <div id="collapseSix" class="accordion-collapse collapse show" aria-labelledby="headingSix"
-                            data-bs-parent="#analysisAccordion">
-                            <div class="accordion-body">
-                                {% if data.market_analysis_html %}
-                                <h2 class="accordion-header" id="headingFour">
-                                    <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#collapseFour" aria-expanded="true"
-                                        aria-controls="collapseFour">
-                                        🔄 Comparativas Indirectas Detalladas
-                                    </button>
-                                </h2>
-                                <div id="collapseFour" class="accordion-collapse collapse show"
-                                    aria-labelledby="headingFour" data-bs-parent="#analysisAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <div class="card h-100">
-                                                    <div class="card-header">
-                                                        <h5 class="card-subtitle"><span class="home-color">{{
-                                                                data.home_name }}</span> vs. últ. rival
-                                                            de <span class="away-color">{{
-                                                                data.away_name }}</span></h5>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        {% if data.comp_L_vs_UV_A.details %}
-                                                        {% set res = data.comp_L_vs_UV_A.details %}
-                                                        <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
-                                                                }}</span> ({{ res.home_team }} vs {{
-                                                            res.away_team }})
-                                                        </p>
-                                                        <p>⚖️ <b>AH:</b> <span class="ah-value">{{
-                                                                format_ah(res.ah_line) }}</span></p>
-                                                        <p>🏟️ <b>Localía de '{{ data.home_name }}':</b>
-                                                            <span class="data-highlight">{{ res.localia
-                                                                }}</span>
-                                                        </p>
-                                                        {% if data.comp_L_vs_UV_A.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
-                                                        <table class="stat-table">
-                                                            {{
-                                                            render_stat_rows(data.comp_L_vs_UV_A.stats)
-                                                            }}
-                                                        </table>
-                                                        {% endif %}
-                                                        {% else %}<p class="text-muted">Comparativa no
-                                                            disponible.</p>{%
-                                                        endif %}
-                                                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis de Mercado -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingSix">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix"
+                    aria-expanded="true" aria-controls="collapseSix">
+                    📊 Análisis de Mercado vs. Histórico H2H
+                </button>
+            </h2>
+            <div id="collapseSix" class="accordion-collapse collapse show" aria-labelledby="headingSix"
+                data-bs-parent="#analysisAccordion">
+                <div class="accordion-body">
+                    {% if data.market_analysis_html %}
+                    <div class="market-analysis-wrapper">
+                        {{ data.market_analysis_html | safe }}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Aún no se generó el análisis de mercado para este partido.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis Detallado -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo"
+                    aria-expanded="true" aria-controls="collapseTwo">
+                    🔍 Análisis Detallado del Partido
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse show" aria-labelledby="headingTwo"
+                data-bs-parent="#analysisAccordion">
+                <div class="accordion-body">
+                    <div class="accordion" id="detailedAnalysisAccordion">
+                        <!-- Comparativas Indirectas -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapseFour" aria-expanded="true" aria-controls="collapseFour">
+                                    🔄 Comparativas Indirectas Detalladas
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse show"
+                                aria-labelledby="headingFour" data-bs-parent="#detailedAnalysisAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-header">
+                                                    <h5 class="card-subtitle"><span class="home-color">{{ data.home_name
+                                                            }}</span> vs. últ. rival
+                                                        de <span class="away-color">{{ data.away_name }}</span></h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    {% if data.comp_L_vs_UV_A.details %}
+                                                    {% set res = data.comp_L_vs_UV_A.details %}
+                                                    <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
+                                                            }}</span> ({{ res.home_team }} vs {{ res.away_team }})
+                                                    </p>
+                                                    <p>⚖️ <b>AH:</b> <span class="ah-value">{{ format_ah(res.ah_line)
+                                                            }}</span></p>
+                                                    <p>🏟️ <b>Localía de '{{ data.home_name }}':</b>
+                                                        <span class="data-highlight">{{ res.localia }}</span>
+                                                    </p>
+                                                    {% if data.comp_L_vs_UV_A.stats %}
+                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <table class="stat-table">
+                                                        {{ render_stat_rows(data.comp_L_vs_UV_A.stats) }}
+                                                    </table>
+                                                    {% endif %}
+                                                    {% else %}<p class="text-muted">Comparativa no disponible.</p>{%
+                                                    endif %}
                                                 </div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
-                                                <div class="card h-100">
-                                                    <div class="card-header">
-                                                        <h5 class="card-subtitle"><span class="away-color">{{
-                                                                data.away_name }}</span> vs. últ. rival
-                                                            de <span class="home-color">{{
-                                                                data.home_name }}</span></h5>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        {% if data.comp_V_vs_UL_H.details %}
-                                                        {% set res = data.comp_V_vs_UL_H.details %}
-                                                        <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
-                                                                }}</span> ({{ res.home_team }} vs {{
-                                                            res.away_team }})
-                                                        </p>
-                                                        <p>⚖️ <b>AH:</b> <span class="ah-value">{{
-                                                                format_ah(res.ah_line) }}</span></p>
-                                                        <p>🏟️ <b>Localía de '{{ data.away_name }}':</b>
-                                                            <span class="data-highlight">{{ res.localia
-                                                                }}</span>
-                                                        </p>
-                                                        {% if data.comp_V_vs_UL_H.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
-                                                        <table class="stat-table">
-                                                            {{
-                                                            render_stat_rows(data.comp_V_vs_UL_H.stats)
-                                                            }}
-                                                        </table>
-                                                        {% endif %}
-                                                        {% else %}<p class="text-muted">Comparativa no
-                                                            disponible.</p>{%
-                                                        endif %}
-                                                    </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-header">
+                                                    <h5 class="card-subtitle"><span class="away-color">{{ data.away_name
+                                                            }}</span> vs. últ. rival
+                                                        de <span class="home-color">{{ data.home_name }}</span></h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    {% if data.comp_V_vs_UL_H.details %}
+                                                    {% set res = data.comp_V_vs_UL_H.details %}
+                                                    <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
+                                                            }}</span> ({{ res.home_team }} vs {{ res.away_team }})
+                                                    </p>
+                                                    <p>⚖️ <b>AH:</b> <span class="ah-value">{{ format_ah(res.ah_line)
+                                                            }}</span></p>
+                                                    <p>🏟️ <b>Localía de '{{ data.away_name }}':</b>
+                                                        <span class="data-highlight">{{ res.localia }}</span>
+                                                    </p>
+                                                    {% if data.comp_V_vs_UL_H.stats %}
+                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <table class="stat-table">
+                                                        {{ render_stat_rows(data.comp_V_vs_UL_H.stats) }}
+                                                    </table>
+                                                    {% endif %}
+                                                    {% else %}<p class="text-muted">Comparativa no disponible.</p>{%
+                                                    endif %}
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- H2H Directo -->
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="headingFive">
-                                    <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#collapseFive" aria-expanded="true"
-                                        aria-controls="collapseFive">
-                                        ⚔️ Enfrentamientos Directos (H2H)
-                                    </button>
-                                </h2>
-                                <div id="collapseFive" class="accordion-collapse collapse show"
-                                    aria-labelledby="headingFive" data-bs-parent="#analysisAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <div class="card h-100">
-                                                    <div class="card-header">
-                                                        <h5 class="card-title">Último partido en este
-                                                            estadio</h5>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        {% if data.h2h_stadium.details.res1 != '?:?' %}
-                                                        {% set res = data.h2h_stadium.details %}
-                                                        <p><span class="home-color">{{ data.home_name
-                                                                }}</span> <span class="score-value">{{
-                                                                res.res1 }}</span> <span class="away-color">{{
-                                                                data.away_name
-                                                                }}</span></p>
-                                                        <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah1
-                                                                }}</span></p>
-                                                        {% if data.h2h_stadium.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
-                                                        <table class="stat-table">
-                                                            {{ render_stat_rows(data.h2h_stadium.stats)
-                                                            }}
-                                                        </table>
-                                                        {% endif %}
-                                                        {% else %}<p class="text-muted text-center">No
-                                                            se encontró H2H
-                                                            con {{ data.home_name }} en casa.</p>{%
-                                                        endif %}
-                                                    </div>
+                        <!-- H2H Directo -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFive">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapseFive" aria-expanded="true" aria-controls="collapseFive">
+                                    ⚔️ Enfrentamientos Directos (H2H)
+                                </button>
+                            </h2>
+                            <div id="collapseFive" class="accordion-collapse collapse show"
+                                aria-labelledby="headingFive" data-bs-parent="#detailedAnalysisAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-header">
+                                                    <h5 class="card-title">Último partido en este estadio</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    {% if data.h2h_stadium.details.res1 != '?:?' %}
+                                                    {% set res = data.h2h_stadium.details %}
+                                                    <p><span class="home-color">{{ data.home_name }}</span> <span
+                                                            class="score-value">{{ res.res1 }}</span> <span
+                                                            class="away-color">{{ data.away_name }}</span></p>
+                                                    <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah1
+                                                            }}</span></p>
+                                                    {% if data.h2h_stadium.stats %}
+                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <table class="stat-table">
+                                                        {{ render_stat_rows(data.h2h_stadium.stats) }}
+                                                    </table>
+                                                    {% endif %}
+                                                    {% else %}<p class="text-muted text-center">No se encontró H2H
+                                                        con {{ data.home_name }} en casa.</p>{% endif %}
                                                 </div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
-                                                <div class="card h-100">
-                                                    <div class="card-header">
-                                                        <h5 class="card-title">Último partido general
-                                                        </h5>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        {% if data.h2h_general.details.res6 != '?:?' %}
-                                                        {% set res = data.h2h_general.details %}
-                                                        <p><span class="home-color">{{ res.h2h_gen_home
-                                                                }}</span> <span class="score-value">{{
-                                                                res.res6 }}</span> <span class="away-color">{{
-                                                                res.h2h_gen_away
-                                                                }}</span></p>
-                                                        <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah6
-                                                                }}</span></p>
-                                                        {% if data.h2h_general.stats %}
-                                                        <h6 class="mt-3 text-muted">Estadísticas</h6>
-                                                        <table class="stat-table">
-                                                            {{ render_stat_rows(data.h2h_general.stats)
-                                                            }}
-                                                        </table>
-                                                        {% endif %}
-                                                        {% else %}<p class="text-muted text-center">No
-                                                            se encontró H2H
-                                                            general.</p>{% endif %}
-                                                        data.away_standings.ranking }}</span></p>
-                                                        <h6>Estadísticas Totales</h6>
-                                                        <p><b>PJ:</b> {{ data.away_standings.total_pj }} | <b>V-E-D:</b>
-                                                            {{
-                                                            data.away_standings.total_v }}-{{
-                                                            data.away_standings.total_e }}-{{
-                                                            data.away_standings.total_d }} | <b>GF:GC:</b> {{
-                                                            data.away_standings.total_gf }}:{{
-                                                            data.away_standings.total_gc }}</p>
-                                                        <h6>{{ data.away_standings.specific_type }}</h6>
-                                                        <p><b>PJ:</b> {{ data.away_standings.specific_pj }} |
-                                                            <b>V-E-D:</b> {{
-                                                            data.away_standings.specific_v }}-{{
-                                                            data.away_standings.specific_e }}-{{
-                                                            data.away_standings.specific_d }} | <b>GF:GC:</b> {{
-                                                            data.away_standings.specific_gf
-                                                            }}:{{ data.away_standings.specific_gc }}</p>
-                                                        {% else %}<p class="text-muted text-center">Datos de
-                                                            clasificación no disponibles.</p>{%
-                                                        endif %}
-                                                        <hr>
-                                                        <h6 class="text-center">Over/Under Odds % (Últ. {{
-                                                            data.away_ou_stats.total }} partidos)
-                                                        </h6>
-                                                        {% if data.away_ou_stats.total > 0 %}
-                                                        <p class="text-center">
-                                                            <span style="color: green; font-weight: bold;">Over: {{
-                                                                "%.1f"|format(data.away_ou_stats.over_pct) }}%</span> |
-                                                            <span style="color: red; font-weight: bold;">Under: {{
-                                                                "%.1f"|format(data.away_ou_stats.under_pct) }}%</span> |
-                                                            <span style="color: grey;">Push: {{
-                                                                "%.1f"|format(data.away_ou_stats.push_pct)
-                                                                }}%</span>
-                                                            {% else %}
-                                                        <p class="text-muted text-center">No hay datos O/U.</p>{% endif
-                                                        %}
-                                                    </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-header">
+                                                    <h5 class="card-title">Último partido general</h5>
                                                 </div>
-                                                <!-- Análisis de Mercado -->
-                                                <div class="accordion-item">
-                                                    <h2 class="accordion-header" id="headingSix">
-                                                        <button class="accordion-button" type="button"
-                                                            data-bs-toggle="collapse" data-bs-target="#collapseSix"
-                                                            aria-expanded="true" aria-controls="collapseSix">
-                                                            📊 Análisis de Mercado vs. Histórico H2H
-                                                        </button>
-                                                    </h2>
-                                                    <div id="collapseSix" class="accordion-collapse collapse show"
-                                                        aria-labelledby="headingSix"
-                                                        data-bs-parent="#analysisAccordion">
-                                                        <div class="accordion-body">
-                                                            {% if data.market_analysis_html %}
-                                                            <h2 class="accordion-header" id="headingFour">
-                                                                <button class="accordion-button" type="button"
-                                                                    data-bs-toggle="collapse"
-                                                                    data-bs-target="#collapseFour" aria-expanded="true"
-                                                                    aria-controls="collapseFour">
-                                                                    🔄 Comparativas Indirectas Detalladas
-                                                                </button>
-                                                            </h2>
-                                                            <div id="collapseFour"
-                                                                class="accordion-collapse collapse show"
-                                                                aria-labelledby="headingFour"
-                                                                data-bs-parent="#analysisAccordion">
-                                                                <div class="accordion-body">
-                                                                    <div class="row">
-                                                                        <div class="col-md-6 mb-3">
-                                                                            <div class="card h-100">
-                                                                                <div class="card-header">
-                                                                                    <h5 class="card-subtitle"><span
-                                                                                            class="home-color">{{
-                                                                                            data.home_name }}</span> vs.
-                                                                                        últ. rival
-                                                                                        de <span class="away-color">{{
-                                                                                            data.away_name }}</span>
-                                                                                    </h5>
-                                                                                </div>
-                                                                                <div class="card-body">
-                                                                                    {% if data.comp_L_vs_UV_A.details %}
-                                                                                    {% set res =
-                                                                                    data.comp_L_vs_UV_A.details %}
-                                                                                    <p>📊 <b>Res:</b> <span
-                                                                                            class="data-highlight">{{
-                                                                                            res.score
-                                                                                            }}</span> ({{ res.home_team
-                                                                                        }} vs {{
-                                                                                        res.away_team }})
-                                                                                    </p>
-                                                                                    <p>⚖️ <b>AH:</b> <span
-                                                                                            class="ah-value">{{
-                                                                                            format_ah(res.ah_line)
-                                                                                            }}</span></p>
-                                                                                    <p>🏟️ <b>Localía de '{{
-                                                                                            data.home_name }}':</b>
-                                                                                        <span class="data-highlight">{{
-                                                                                            res.localia
-                                                                                            }}</span>
-                                                                                    </p>
-                                                                                    {% if data.comp_L_vs_UV_A.stats %}
-                                                                                    <h6 class="mt-3 text-muted">
-                                                                                        Estadísticas</h6>
-                                                                                    <table class="stat-table">
-                                                                                        {{
-                                                                                        render_stat_rows(data.comp_L_vs_UV_A.stats)
-                                                                                        }}
-                                                                                    </table>
-                                                                                    {% endif %}
-                                                                                    {% else %}<p class="text-muted">
-                                                                                        Comparativa no
-                                                                                        disponible.</p>{%
-                                                                                    endif %}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div class="col-md-6 mb-3">
-                                                                            <div class="card h-100">
-                                                                                <div class="card-header">
-                                                                                    <h5 class="card-subtitle"><span
-                                                                                            class="away-color">{{
-                                                                                            data.away_name }}</span> vs.
-                                                                                        últ. rival
-                                                                                        de <span class="home-color">{{
-                                                                                            data.home_name }}</span>
-                                                                                    </h5>
-                                                                                </div>
-                                                                                <div class="card-body">
-                                                                                    {% if data.comp_V_vs_UL_H.details %}
-                                                                                    {% set res =
-                                                                                    data.comp_V_vs_UL_H.details %}
-                                                                                    <p>📊 <b>Res:</b> <span
-                                                                                            class="data-highlight">{{
-                                                                                            res.score
-                                                                                            }}</span> ({{ res.home_team
-                                                                                        }} vs {{
-                                                                                        res.away_team }})
-                                                                                    </p>
-                                                                                    <p>⚖️ <b>AH:</b> <span
-                                                                                            class="ah-value">{{
-                                                                                            format_ah(res.ah_line)
-                                                                                            }}</span></p>
-                                                                                    <p>🏟️ <b>Localía de '{{
-                                                                                            data.away_name }}':</b>
-                                                                                        <span class="data-highlight">{{
-                                                                                            res.localia
-                                                                                            }}</span>
-                                                                                    </p>
-                                                                                    {% if data.comp_V_vs_UL_H.stats %}
-                                                                                    <h6 class="mt-3 text-muted">
-                                                                                        Estadísticas</h6>
-                                                                                    <table class="stat-table">
-                                                                                        {{
-                                                                                        render_stat_rows(data.comp_V_vs_UL_H.stats)
-                                                                                        }}
-                                                                                    </table>
-                                                                                    {% endif %}
-                                                                                    {% else %}<p class="text-muted">
-                                                                                        Comparativa no
-                                                                                        disponible.</p>{%
-                                                                                    endif %}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <!-- H2H Directo -->
-                                                        <div class="accordion-item">
-                                                            <h2 class="accordion-header" id="headingFive">
-                                                                <button class="accordion-button" type="button"
-                                                                    data-bs-toggle="collapse"
-                                                                    data-bs-target="#collapseFive" aria-expanded="true"
-                                                                    aria-controls="collapseFive">
-                                                                    ⚔️ Enfrentamientos Directos (H2H)
-                                                                </button>
-                                                            </h2>
-                                                            <div id="collapseFive"
-                                                                class="accordion-collapse collapse show"
-                                                                aria-labelledby="headingFive"
-                                                                data-bs-parent="#analysisAccordion">
-                                                                <div class="accordion-body">
-                                                                    <div class="row">
-                                                                        <div class="col-md-6 mb-3">
-                                                                            <div class="card h-100">
-                                                                                <div class="card-header">
-                                                                                    <h5 class="card-title">Último
-                                                                                        partido en este
-                                                                                        estadio</h5>
-                                                                                </div>
-                                                                                <div class="card-body">
-                                                                                    {% if data.h2h_stadium.details.res1
-                                                                                    != '?:?' %}
-                                                                                    {% set res =
-                                                                                    data.h2h_stadium.details %}
-                                                                                    <p><span class="home-color">{{
-                                                                                            data.home_name
-                                                                                            }}</span> <span
-                                                                                            class="score-value">{{
-                                                                                            res.res1 }}</span> <span
-                                                                                            class="away-color">{{
-                                                                                            data.away_name
-                                                                                            }}</span></p>
-                                                                                    <p><b>Handicap Inicial:</b> <span
-                                                                                            class="ah-value">{{ res.ah1
-                                                                                            }}</span></p>
-                                                                                    {% if data.h2h_stadium.stats %}
-                                                                                    <h6 class="mt-3 text-muted">
-                                                                                        Estadísticas</h6>
-                                                                                    <table class="stat-table">
-                                                                                        {{
-                                                                                        render_stat_rows(data.h2h_stadium.stats)
-                                                                                        }}
-                                                                                    </table>
-                                                                                    {% endif %}
-                                                                                    {% else %}<p
-                                                                                        class="text-muted text-center">
-                                                                                        No
-                                                                                        se encontró H2H
-                                                                                        con {{ data.home_name }} en
-                                                                                        casa.</p>{%
-                                                                                    endif %}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div class="col-md-6 mb-3">
-                                                                            <div class="card h-100">
-                                                                                <div class="card-header">
-                                                                                    <h5 class="card-title">Último
-                                                                                        partido general
-                                                                                    </h5>
-                                                                                </div>
-                                                                                <div class="card-body">
-                                                                                    {% if data.h2h_general.details.res6
-                                                                                    != '?:?' %}
-                                                                                    {% set res =
-                                                                                    data.h2h_general.details %}
-                                                                                    <p><span class="home-color">{{
-                                                                                            res.h2h_gen_home
-                                                                                            }}</span> <span
-                                                                                            class="score-value">{{
-                                                                                            res.res6 }}</span> <span
-                                                                                            class="away-color">{{
-                                                                                            res.h2h_gen_away
-                                                                                            }}</span></p>
-                                                                                    <p><b>Handicap Inicial:</b> <span
-                                                                                            class="ah-value">{{ res.ah6
-                                                                                            }}</span></p>
-                                                                                    {% if data.h2h_general.stats %}
-                                                                                    <h6 class="mt-3 text-muted">
-                                                                                        Estadísticas</h6>
-                                                                                    <table class="stat-table">
-                                                                                        {{
-                                                                                        render_stat_rows(data.h2h_general.stats)
-                                                                                        }}
-                                                                                    </table>
-                                                                                    {% endif %}
-                                                                                    {% else %}<p
-                                                                                        class="text-muted text-center">
-                                                                                        No
-                                                                                        se encontró H2H
-                                                                                        general.</p>{% endif %}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-
-                                                    </div>
+                                                <div class="card-body">
+                                                    {% if data.h2h_general.details.res6 != '?:?' %}
+                                                    {% set res = data.h2h_general.details %}
+                                                    <p><span class="home-color">{{ res.h2h_gen_home }}</span> <span
+                                                            class="score-value">{{ res.res6 }}</span> <span
+                                                            class="away-color">{{ res.h2h_gen_away }}</span></p>
+                                                    <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah6
+                                                            }}</span></p>
+                                                    {% if data.h2h_general.stats %}
+                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <table class="stat-table">
+                                                        {{ render_stat_rows(data.h2h_general.stats) }}
+                                                    </table>
+                                                    {% endif %}
+                                                    {% else %}<p class="text-muted text-center">No se encontró H2H
+                                                        general.</p>{% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -707,3 +438,8 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
