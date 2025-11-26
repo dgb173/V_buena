@@ -248,7 +248,7 @@ def _analizar_precedente_goles(precedente_data, goles_actual_num):
     except (ValueError, TypeError):
         return "<li><span class='score-value'>Goles:</span> No se pudo procesar el resultado del precedente.</li>"
 
-def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name, recent_home_matches=None, recent_away_matches=None):
+def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name):
     ah_actual_str = format_ah_as_decimal_string_of(main_odds.get('ah_linea_raw', '-'))
     ah_actual_num = parse_ah_to_number_of(ah_actual_str)
     goles_actual_num = parse_ah_to_number_of(main_odds.get('goals_linea_raw', '-'))
@@ -306,43 +306,39 @@ def generar_analisis_completo_mercado(main_odds, h2h_data, home_name, away_name,
             f"</div>"
         )
         
-    # --- NUEVA SECCIÓN: LISTADO DE ÚLTIMOS PARTIDOS ---
-    listado_html = _build_historical_matches_list_html(recent_home_matches, recent_away_matches, home_name, away_name)
-
     return f"""
     <div style="border-left: 4px solid #1E90FF; padding: 12px 15px; margin-top: 15px; background-color: #f0f2f6; border-radius: 5px; font-size: 0.95em;">
         {titulo_html}
         {analisis_estadio_html}
         {analisis_general_html}
     </div>
-    {listado_html}
     """
 
 def _build_historical_matches_list_html(home_matches, away_matches, home_team_name, away_team_name):
     if not home_matches and not away_matches:
         return ""
 
-    html = "<div style='margin-top: 20px;'>"
+    html = "<div class='historical-matches-container'>"
 
-    def build_table(matches, title, team_name):
+    def build_table(matches, title, team_name, is_home_context):
         if not matches: return ""
         
         table_html = f"""
-        <div style='margin-bottom: 20px;'>
-            <h4 style='margin-bottom: 10px; color: #333; border-bottom: 2px solid #ddd; padding-bottom: 5px;'>
-                {title} <span style='color: #666; font-size: 0.8em;'>({team_name})</span>
-            </h4>
-            <div class='table-responsive'>
-                <table class='table table-sm table-striped table-hover' style='font-size: 0.85em;'>
-                    <thead class='table-dark'>
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><strong>{title}</strong> <small class="text-muted">({team_name})</small></h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
                         <tr>
-                            <th>Liga/Copa</th>
+                            <th>Liga</th>
                             <th>Fecha</th>
-                            <th>Local</th>
-                            <th>Marcador (HT)</th>
+                            <th class="text-end">Local</th>
+                            <th class="text-center">Res</th>
                             <th>Visitante</th>
-                            <th>AH Inicial</th>
-                            <th>Línea Gol</th>
+                            <th class="text-center">AH</th>
+                            <th class="text-center">O/U</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -350,40 +346,29 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
         
         for m in matches:
             date = m.get('date', '-')
-            league = m.get('league_id_hist', '-') # O el nombre si lo tuviéramos mejor
-            # A veces el nombre de la liga viene en el title del td
-            
+            league = m.get('league_id_hist', '-')
             home = m.get('home', '-')
             away = m.get('away', '-')
             score = m.get('score', '-')
-            score_raw = m.get('score_raw', '')
-            
-            # Intentar formatear el score con HT si está disponible en score_raw o similar
-            # En get_match_details_from_row_of, score_raw suele ser "1-0"
-            # Si queremos HT, necesitaríamos extraerlo del span hscore_1/2 si existe.
-            # Por ahora usaremos lo que tenemos.
-            
             ah = m.get('ahLine', '-')
-            # Goal line no lo tenemos parseado explícitamente en get_match_details_from_row_of
-            # Intentaremos usar un valor genérico o N/A por ahora, ya que no está en la tabla standard
-            ou = m.get('ouLine', 'N/A') 
+            ou = m.get('ouLine', '-')
             
-            # Resaltar el equipo analizado
-            home_style = "font-weight:bold;" if team_name.lower() in home.lower() else ""
-            away_style = "font-weight:bold;" if team_name.lower() in away.lower() else ""
+            # Highlight logic
+            home_class = "fw-bold text-primary" if team_name.lower() in home.lower() else ""
+            away_class = "fw-bold text-primary" if team_name.lower() in away.lower() else ""
             
-            # Colores para AH y OU si tuviéramos resultados (W/L)
-            # Por ahora texto plano
+            # Score coloring (simple win/loss logic if possible, otherwise just bold)
+            score_style = "font-weight:bold;"
             
             table_html += f"""
                         <tr>
                             <td>{league}</td>
                             <td>{date}</td>
-                            <td style='{home_style}'>{home}</td>
-                            <td style='text-align:center;'>{score}</td>
-                            <td style='{away_style}'>{away}</td>
-                            <td style='text-align:center; color: #d63384; font-weight:bold;'>{ah}</td>
-                            <td style='text-align:center; color: #d63384; font-weight:bold;'>{ou}</td>
+                            <td class="text-end {home_class}">{home}</td>
+                            <td class="text-center" style="{score_style}">{score}</td>
+                            <td class="{away_class}">{away}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{ah}</span></td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{ou}</span></td>
                         </tr>
             """
         
@@ -396,10 +381,10 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
         return table_html
 
     if home_matches:
-        html += build_table(home_matches, "🏠 Últimos Partidos en Casa", home_team_name)
+        html += build_table(home_matches, "Partidos en Casa", home_team_name, True)
     
     if away_matches:
-        html += build_table(away_matches, "✈️ Últimos Partidos Fuera", away_team_name)
+        html += build_table(away_matches, "Partidos Fuera", away_team_name, False)
 
     html += "</div>"
     return html
@@ -966,8 +951,8 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
         last_away_match = extract_last_match_in_league_of(soup_completo, "table_v2", away_name, league_id, False, odds_map)
         
         # Extraer listas de partidos recientes (Home vs Home, Away vs Away)
-        recent_home_matches = extract_recent_matches(soup_completo, "table_v1", home_name, None, True, odds_map, limit=10)
-        recent_away_matches = extract_recent_matches(soup_completo, "table_v2", away_name, None, False, odds_map, limit=10)
+        recent_home_matches = extract_recent_matches(soup_completo, "table_v1", home_name, None, True, odds_map, limit=30)
+        recent_away_matches = extract_recent_matches(soup_completo, "table_v2", away_name, None, False, odds_map, limit=30)
         
         h2h_data = extract_h2h_data_of(soup_completo, home_name, away_name, None, odds_map)
         comp_L_vs_UV_A = extract_comparative_match_of(soup_completo, "table_v1", home_name, (last_away_match or {}).get('home_team'), league_id, True, odds_map)
@@ -980,7 +965,8 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
     except Exception as exc:
         return {"error": f"Error durante el análisis: {exc}"}
 
-    market_analysis_html = generar_analisis_completo_mercado(main_match_odds_data, h2h_data, home_name, away_name, recent_home_matches, recent_away_matches)
+    market_analysis_html = generar_analisis_completo_mercado(main_match_odds_data, h2h_data, home_name, away_name)
+    historical_matches_html = _build_historical_matches_list_html(recent_home_matches, recent_away_matches, home_name, away_name)
 
     def get_stats_rows(match_id_value):
         if not match_id_value:
@@ -1011,6 +997,7 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
             "goals_linea": format_ah_as_decimal_string_of(main_match_odds_data.get('goals_linea_raw', '?'))
         },
         "market_analysis_html": market_analysis_html,
+        "historical_matches_html": historical_matches_html,
         "last_home_match": {"details": last_home_match, "stats": last_home_match_stats},
         "last_away_match": {"details": last_away_match, "stats": last_away_match_stats},
         "h2h_col3": {"details": details_h2h_col3, "stats": h2h_col3_stats},
