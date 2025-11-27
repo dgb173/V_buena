@@ -17,7 +17,7 @@ SELENIUM_AVAILABLE = False
 
 
 # --- CONFIGURACIÓN GLOBAL ---
-BASE_URL_OF = "https://live18.nowgoal25.com"
+BASE_URL_OF = "https://live2.nowgoal26.com"
 SELENIUM_TIMEOUT_SECONDS_OF = 10
 PLACEHOLDER_NODATA = "*(No disponible)*"
 REQUEST_TIMEOUT_SECONDS = 10
@@ -457,7 +457,7 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
                                 <th class="text-center">Res</th>
                                 <th>Visitante</th>
                                 <th class="text-center">AH</th>
-                                <th class="text-center">O/U</th>
+
                             </tr>
                         </thead>
                         <tbody>
@@ -487,7 +487,7 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
                             <td class="text-center" style="{score_style}">{score}</td>
                             <td class="{away_class}">{away}</td>
                             <td class="text-center"><span class="badge bg-light text-dark border">{ah}</span></td>
-                            <td class="text-center"><span class="badge bg-light text-dark border">{ou}</span></td>
+
                         </tr>
             """
         
@@ -508,13 +508,7 @@ def _build_historical_matches_list_html(home_matches, away_matches, home_team_na
                         </div>
         """
         
-        if stats['HasOU']:
-             table_html += f"""
-                        <div>
-                            <span class="text-primary fw-bold">O: {stats['O']}</span> | 
-                            <span class="text-secondary fw-bold">U: {stats['U']}</span>
-                        </div>
-            """
+
             
         table_html += """
                     </div>
@@ -601,12 +595,25 @@ def get_match_details_from_row_of(row_element, score_class_selector='score', sou
         if len(cells) <= ah_idx: return None
         date_span = cells[1].find('span', attrs={'name': 'timeData'})
         # Priorizar data-t si existe (formato YYYY-MM-DD HH:MM:SS)
-        date_txt = date_span.get('data-t', '').split(' ')[0] if date_span and date_span.get('data-t') else (date_span.get_text(strip=True) if date_span else '')
+        if date_span and date_span.get('data-t'):
+             date_txt = date_span.get('data-t', '').split(' ')[0]
+        elif cells[1].get('data-t'):
+             date_txt = cells[1].get('data-t', '').split(' ')[0]
+        else:
+             date_txt = date_span.get_text(strip=True) if date_span else ''
         
         def get_cell_txt(idx):
             a = cells[idx].find('a')
             return a.get_text(strip=True) if a else cells[idx].get_text(strip=True)
+        
+        def get_red_card(idx):
+            # Buscar span con clase 'rcard' o 'red-card'
+            rc = cells[idx].find('span', class_=lambda c: c and ('rcard' in c or 'red-card' in c))
+            return rc.get_text(strip=True) if rc else None
+
         home, away = get_cell_txt(home_idx), get_cell_txt(away_idx)
+        home_red, away_red = get_red_card(home_idx), get_red_card(away_idx)
+
         if not home or not away: return None
         score_cell = cells[score_idx]
         score_span = score_cell.find('span', class_=lambda c: isinstance(c, str) and score_class_selector in c)
@@ -647,7 +654,8 @@ def get_match_details_from_row_of(row_element, score_class_selector='score', sou
             'score_raw': score_raw, 'ahLine': ah_line_fmt, 'ahLine_raw': ah_line_raw or '-',
             'ouLine': ou_line_raw, # Placeholder por ahora
             'matchIndex': row_element.get('index'), 'vs': row_element.get('vs'),
-            'league_id_hist': row_element.get('title') or row_element.get('name') # Usar title como nombre de liga si existe
+            'league_id_hist': row_element.get('title') or row_element.get('name'), # Usar title como nombre de liga si existe
+            'home_red': home_red, 'away_red': away_red
         }
     except Exception:
         return None
@@ -857,7 +865,7 @@ def fetch_odds_from_bf_data(match_id):
     Fallback para obtener líneas de hándicap y goles desde bf_en-idn.js
     cuando no están disponibles en el HTML principal.
     """
-    url = "https://live18.nowgoal25.com/gf/data/bf_en-idn.js"
+    url = f"{BASE_URL_OF}/gf/data/bf_en-idn.js"
     try:
         session = get_requests_session_of()
         response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
@@ -873,7 +881,7 @@ def fetch_odds_from_bf_data(match_id):
             row_str = match.group(1)
             if str(match_id) not in row_str:
                 continue
-                
+            
             # Encontrado, ahora parseamos con cuidado
             # Reemplazar comillas simples por dobles para JSON
             row_str_clean = row_str.replace("'", '"')
@@ -898,7 +906,10 @@ def fetch_odds_from_bf_data(match_id):
                     # Índice 21: Hándicap (ej: 0.5, -1, etc.)
                     # Índice 25: Línea de goles (ej: 2.5, 3, etc.)
                     
-                    ah_line = data[21] if len(data) > 21 else None
+                    ah_line = data[21] if len(data) > 21 and data[21] is not None else None
+                    if ah_line is None and len(data) > 23:
+                        ah_line = data[23]
+
                     goals_line = data[25] if len(data) > 25 else None
                     
                     return {
@@ -907,7 +918,7 @@ def fetch_odds_from_bf_data(match_id):
                     }
             except json.JSONDecodeError:
                 continue
-                
+        
         return None
     except Exception as e:
         print(f"Error fetching bf_data: {e}")
@@ -918,17 +929,18 @@ def extract_bet365_initial_odds_of(soup, match_id=None):
         "ah_home_cuota": "N/A", "ah_linea_raw": "N/A", "ah_away_cuota": "N/A",
         "goals_over_cuota": "N/A", "goals_linea_raw": "N/A", "goals_under_cuota": "N/A"
     }
-    if not soup: return odds_info
-    bet365_row = soup.select_one("tr#tr_o_1_8[name='earlyOdds'], tr#tr_o_1_31[name='earlyOdds']")
-    if not bet365_row: return odds_info
-    tds = bet365_row.find_all("td")
-    if len(tds) >= 11:
-        odds_info["ah_home_cuota"] = tds[2].get("data-o", tds[2].text).strip()
-        odds_info["ah_linea_raw"] = tds[3].get("data-o", tds[3].text).strip()
-        odds_info["ah_away_cuota"] = tds[4].get("data-o", tds[4].text).strip()
-        odds_info["goals_over_cuota"] = tds[8].get("data-o", tds[8].text).strip()
-        odds_info["goals_linea_raw"] = tds[9].get("data-o", tds[9].text).strip()
-        odds_info["goals_under_cuota"] = tds[10].get("data-o", tds[10].text).strip()
+    
+    if soup:
+        bet365_row = soup.select_one("tr#tr_o_1_8[name='earlyOdds'], tr#tr_o_1_31[name='earlyOdds']")
+        if bet365_row:
+            tds = bet365_row.find_all("td")
+            if len(tds) >= 11:
+                odds_info["ah_home_cuota"] = tds[2].get("data-o", tds[2].text).strip()
+                odds_info["ah_linea_raw"] = tds[3].get("data-o", tds[3].text).strip()
+                odds_info["ah_away_cuota"] = tds[4].get("data-o", tds[4].text).strip()
+                odds_info["goals_over_cuota"] = tds[8].get("data-o", tds[8].text).strip()
+                odds_info["goals_linea_raw"] = tds[9].get("data-o", tds[9].text).strip()
+                odds_info["goals_under_cuota"] = tds[10].get("data-o", tds[10].text).strip()
     
     # Fallback si no se encontraron líneas (ah_linea_raw es "N/A" o "-")
     if (odds_info["ah_linea_raw"] in ["N/A", "-", ""] or odds_info["goals_linea_raw"] in ["N/A", "-", ""]) and match_id:

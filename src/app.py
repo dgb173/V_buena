@@ -439,7 +439,7 @@ def parse_main_page_matches(html_content, limit=20, offset=0, handicap_filter=No
     soup = BeautifulSoup(html_content, 'html.parser')
     match_rows = soup.find_all('tr', id=lambda x: x and x.startswith('tr1_'))
     upcoming_matches = []
-    now_utc = datetime.datetime.utcnow()
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
     for row in match_rows:
         match_id = row.get('id', '').replace('tr1_', '')
@@ -731,7 +731,7 @@ def mostrar_estudio(match_id):
         limit=50,
         handicap_filter=handicap_filter,
         goal_line_filter=goal_line_filter,
-        min_time=datetime.datetime.utcnow()
+        min_time=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     )
 
     # Filter finished matches: apply filters
