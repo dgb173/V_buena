@@ -512,33 +512,32 @@
                             <div id="collapseFive" class="accordion-collapse collapse show"
                                 aria-labelledby="headingFive" data-bs-parent="#analysisAccordion">
                                 <div class="accordion-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
+                                    <div class="row indirect-comparison-row g-2">
+                                        <div class="col-6 mb-3">
                                             <div class="card h-100">
                                                 <div class="card-header">
-                                                    <h5 class="card-title">Último partido en este estadio</h5>
+                                                    <h5 class="card-subtitle"><span class="home-color">{{ data.home_name
+                                                            }}</span> vs <span class="away-color">{{ data.away_name
+                                                            }}</span> (En este estadio)</h5>
                                                 </div>
                                                 <div class="card-body">
                                                     {% if data.h2h_stadium.details.res1 != '?:?' %}
                                                     {% set res = data.h2h_stadium.details %}
-                                                    <p>
-                                                        <span class="home-color">{{ data.home_name }}</span>
+                                                    <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.res1 }}</span>
                                                         {% if res.home_red %}<span
                                                             class="badge bg-danger text-white ms-1"
                                                             style="font-size: 0.6em;">{{ res.home_red }}</span>{% endif
                                                         %}
-                                                        <span class="score-value mx-1">{{ res.res1 }}</span>
-                                                        <span class="away-color">{{ data.away_name }}</span>
                                                         {% if res.away_red %}<span
                                                             class="badge bg-danger text-white ms-1"
                                                             style="font-size: 0.6em;">{{ res.away_red }}</span>{% endif
                                                         %}
                                                     </p>
                                                     <p class="text-muted small mb-1">{{ res.date }}</p>
-                                                    <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah1
-                                                            }}</span></p>
+                                                    <p>⚖️ <b>AH:</b> <span class="ah-value">{{ res.ah1 }}</span></p>
                                                     {% if data.h2h_stadium.stats %}
-                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas
+                                                    </h6>
                                                     <table class="stat-table">
                                                         {{ render_stat_rows(data.h2h_stadium.stats) }}
                                                     </table>
@@ -551,29 +550,29 @@
                                         <div class="col-6 mb-3">
                                             <div class="card h-100">
                                                 <div class="card-header">
-                                                    <h5 class="card-title">Último partido general</h5>
+                                                    <h5 class="card-subtitle"><span class="home-color">{{ data.home_name
+                                                            }}</span> vs <span class="away-color">{{ data.away_name
+                                                            }}</span> (General)</h5>
                                                 </div>
                                                 <div class="card-body">
                                                     {% if data.h2h_general.details.res6 != '?:?' %}
                                                     {% set res = data.h2h_general.details %}
-                                                    <p>
-                                                        <span class="home-color">{{ res.h2h_gen_home }}</span>
+                                                    <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.res6 }}</span>
+                                                        ({{ res.h2h_gen_home }} vs {{ res.h2h_gen_away }})
                                                         {% if res.home_red %}<span
                                                             class="badge bg-danger text-white ms-1"
                                                             style="font-size: 0.6em;">{{ res.home_red }}</span>{% endif
                                                         %}
-                                                        <span class="score-value mx-1">{{ res.res6 }}</span>
-                                                        <span class="away-color">{{ res.h2h_gen_away }}</span>
                                                         {% if res.away_red %}<span
                                                             class="badge bg-danger text-white ms-1"
                                                             style="font-size: 0.6em;">{{ res.away_red }}</span>{% endif
                                                         %}
                                                     </p>
                                                     <p class="text-muted small mb-1">{{ res.date }}</p>
-                                                    <p><b>Handicap Inicial:</b> <span class="ah-value">{{ res.ah6
-                                                            }}</span></p>
+                                                    <p>⚖️ <b>AH:</b> <span class="ah-value">{{ res.ah6 }}</span></p>
                                                     {% if data.h2h_general.stats %}
-                                                    <h6 class="mt-3 text-muted">Estadísticas</h6>
+                                                    <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas
+                                                    </h6>
                                                     <table class="stat-table">
                                                         {{ render_stat_rows(data.h2h_general.stats) }}
                                                     </table>

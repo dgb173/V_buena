@@ -781,10 +781,35 @@ def get_h2h_details_for_original_logic_of(key_match_id, rival_a_id, rival_b_id, 
                 if match_idx and match_idx in odds_map:
                     handicap_raw = odds_map[match_idx]
             
+            # Extract Date
+            date_txt = "N/A"
+            if len(tds) > 1:
+                date_span = tds[1].find('span', attrs={'name': 'timeData'})
+                if date_span and date_span.get('data-t'):
+                    date_txt = date_span.get('data-t', '').split(' ')[0]
+                elif tds[1].get('data-t'):
+                    date_txt = tds[1].get('data-t', '').split(' ')[0]
+                else:
+                    date_txt = date_span.get_text(strip=True) if date_span else ''
+
+            # Extract Red Cards
+            def get_red_card(cell):
+                rc = cell.find('span', class_=lambda c: c and ('rcard' in c or 'red-card' in c))
+                return rc.get_text(strip=True) if rc else None
+            
+            # Assuming home team is in cell 2 (index 2) and away in cell 4 (index 4) based on typical layout
+            # But we need to be careful about which link corresponds to which team.
+            # The links list has [home_link, away_link].
+            # Let's try to find the parent td for each link to check for red cards.
+            home_red = get_red_card(links[0].find_parent('td'))
+            away_red = get_red_card(links[1].find_parent('td'))
+
             return {
                 "status": "found", "goles_home": g_h.strip(), "goles_away": g_a.strip(),
                 "handicap": handicap_raw or "N/A", "match_id": row.get('index'),
-                "h2h_home_team_name": links[0].text.strip(), "h2h_away_team_name": links[1].text.strip()
+                "h2h_home_team_name": links[0].text.strip(), "h2h_away_team_name": links[1].text.strip(),
+                "date": date_txt,
+                "home_red": home_red, "away_red": away_red
             }
     return {"status": "not_found", "resultado": f"H2H directo no encontrado para {rival_a_name} vs {rival_b_name}."}
 
@@ -907,9 +932,6 @@ def fetch_odds_from_bf_data(match_id):
                     # Índice 25: Línea de goles (ej: 2.5, 3, etc.)
                     
                     ah_line = data[21] if len(data) > 21 and data[21] is not None else None
-                    if ah_line is None and len(data) > 23:
-                        ah_line = data[23]
-
                     goals_line = data[25] if len(data) > 25 else None
                     
                     return {
@@ -924,6 +946,72 @@ def fetch_odds_from_bf_data(match_id):
         print(f"Error fetching bf_data: {e}")
         return None
 
+def fetch_odds_from_ajax(match_id):
+    """
+    Fallback para obtener cuotas desde la API AJAX (especialmente para partidos finalizados).
+    Intenta obtener datos de Bet365 (ID 8 o 281) o Sbobet (ID 31).
+    """
+    url = f"{BASE_URL_OF}/Ajax/SoccerAjax/?type=1&id={match_id}"
+    try:
+        session = get_requests_session_of()
+        response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+        if response.status_code != 200:
+            return None
+            
+        data_json = response.json()
+        if data_json.get("ErrCode") != 0 or not data_json.get("Data"):
+            return None
+            
+        raw_data = data_json["Data"]
+        # Formato: ID*Odds1;Odds2;...^ID*Odds1;...
+        companies = raw_data.split('^')
+        
+        target_odds = None
+        
+        # Prioridad de IDs: 8 (Bet365), 281 (Bet365), 31 (Sbobet), o el que tenga "*" si no hay ID
+        priority_ids = ["8", "281", "31", ""] 
+        
+        for pid in priority_ids:
+            for company_data in companies:
+                if "*" not in company_data: continue
+                
+                comp_id, odds_str = company_data.split('*', 1)
+                # Limpiar ID (puede ser "1;" o "8;36" -> tomamos el primero)
+                comp_id_clean = comp_id.split(';')[0]
+                
+                # print(f"Checking company ID: '{comp_id}' (Clean: '{comp_id_clean}') against priority '{pid}'")
+                
+                # Si pid es "", buscamos el que no tenga ID (ej: "*...") -> comp_id será ""
+                if comp_id_clean == pid:
+                    # Parsear odds
+                    parts = odds_str.split(';')
+                    # Buscamos la parte que tenga suficientes datos (al menos 14 campos para AH y OU)
+                    # Estructura típica: 1x2(3), AH_Init(3), ?, AH_Live(3), ?, OU_Init(3), ...
+                    # Indices aproximados:
+                    # 3: AH Home, 4: AH Line, 5: AH Away
+                    # 11: OU Over, 12: OU Line, 13: OU Under
+                    
+                    for part in parts:
+                        vals = part.split(',')
+                        if len(vals) >= 14:
+                            # Verificar que tenga datos válidos (no vacíos)
+                            if vals[4] and vals[12]:
+                                target_odds = {
+                                    "ah_linea_raw": vals[4],
+                                    "goals_linea_raw": vals[12]
+                                }
+                                # print(f"Found odds for ID '{pid}': {target_odds}")
+                                # print(f"Found odds for ID '{pid}': {target_odds}")
+                                break
+                    if target_odds: break
+            if target_odds: break
+            
+        return target_odds
+
+    except Exception as e:
+        print(f"Error fetching AJAX odds: {e}")
+        return None
+
 def extract_bet365_initial_odds_of(soup, match_id=None):
     odds_info = {
         "ah_home_cuota": "N/A", "ah_linea_raw": "N/A", "ah_away_cuota": "N/A",
@@ -931,7 +1019,23 @@ def extract_bet365_initial_odds_of(soup, match_id=None):
     }
     
     if soup:
-        bet365_row = soup.select_one("tr#tr_o_1_8[name='earlyOdds'], tr#tr_o_1_31[name='earlyOdds']")
+        bet365_row = None
+        
+        # 1. Estrategia más robusta: Buscar la celda que contiene "Bet365"
+        bet365_cell = soup.find("td", string=lambda text: text and "Bet365" in text)
+        if not bet365_cell:
+            bet365_cell = soup.find("b", string=lambda text: text and "Bet365" in text)
+            if bet365_cell:
+                bet365_cell = bet365_cell.find_parent("td")
+        
+        if bet365_cell:
+            bet365_row = bet365_cell.find_parent("tr")
+        
+        # 2. Si falla, intentar selectores específicos conocidos (Legacy)
+        if not bet365_row:
+            bet365_row = soup.select_one("tr#tr_o_1_8[name='earlyOdds'], tr#tr_o_1_31[name='earlyOdds']")
+
+        # 3. Si encontramos la fila, extraemos los datos
         if bet365_row:
             tds = bet365_row.find_all("td")
             if len(tds) >= 11:
@@ -941,8 +1045,17 @@ def extract_bet365_initial_odds_of(soup, match_id=None):
                 odds_info["goals_over_cuota"] = tds[8].get("data-o", tds[8].text).strip()
                 odds_info["goals_linea_raw"] = tds[9].get("data-o", tds[9].text).strip()
                 odds_info["goals_under_cuota"] = tds[10].get("data-o", tds[10].text).strip()
-    
-    # Fallback si no se encontraron líneas (ah_linea_raw es "N/A" o "-")
+
+    # Fallback 1: AJAX (para partidos finalizados donde HTML está vacío)
+    if (odds_info["ah_linea_raw"] in ["N/A", "-", ""] or odds_info["goals_linea_raw"] in ["N/A", "-", ""]) and match_id:
+        ajax_odds = fetch_odds_from_ajax(match_id)
+        if ajax_odds:
+            if odds_info["ah_linea_raw"] in ["N/A", "-", ""]:
+                odds_info["ah_linea_raw"] = ajax_odds.get("ah_linea_raw", "N/A")
+            if odds_info["goals_linea_raw"] in ["N/A", "-", ""]:
+                odds_info["goals_linea_raw"] = ajax_odds.get("goals_linea_raw", "N/A")
+
+    # Fallback 2: BF Data (para partidos en vivo/futuros si AJAX falla)
     if (odds_info["ah_linea_raw"] in ["N/A", "-", ""] or odds_info["goals_linea_raw"] in ["N/A", "-", ""]) and match_id:
         fallback_data = fetch_odds_from_bf_data(match_id)
         if fallback_data:
@@ -1052,10 +1165,17 @@ def extract_h2h_data_of(soup, home_name, away_name, league_id=None, odds_map=Non
     if not all_matches: return results
     all_matches.sort(key=lambda x: _parse_date_ddmmyyyy(x.get('date', '')), reverse=True)
     most_recent = all_matches[0]
-    results.update({'ah6': most_recent.get('ahLine', '-'), 'res6': most_recent.get('score', '?:?'), 'res6_raw': most_recent.get('score_raw', '?-?'), 'match6_id': most_recent.get('matchIndex'), 'h2h_gen_home': most_recent.get('home'), 'h2h_gen_away': most_recent.get('away')})
+    results.update({
+        'ah6': most_recent.get('ahLine', '-'), 'res6': most_recent.get('score', '?:?'), 'res6_raw': most_recent.get('score_raw', '?-?'),
+        'match6_id': most_recent.get('matchIndex'), 'h2h_gen_home': most_recent.get('home'), 'h2h_gen_away': most_recent.get('away'),
+        'date': most_recent.get('date', 'N/A'), 'home_red': most_recent.get('home_red'), 'away_red': most_recent.get('away_red')
+    })
     for d in all_matches:
         if d['home'].lower() == home_name.lower() and d['away'].lower() == away_name.lower():
-            results.update({'ah1': d.get('ahLine', '-'), 'res1': d.get('score', '?:?'), 'res1_raw': d.get('score_raw', '?-?'), 'match1_id': d.get('matchIndex')})
+            results.update({
+                'ah1': d.get('ahLine', '-'), 'res1': d.get('score', '?:?'), 'res1_raw': d.get('score_raw', '?-?'),
+                'match1_id': d.get('matchIndex'), 'date': d.get('date', 'N/A'), 'home_red': d.get('home_red'), 'away_red': d.get('away_red')
+            })
             break
     return results
 
@@ -1068,7 +1188,11 @@ def extract_comparative_match_of(soup, table_id, main_team, opponent, league_id,
         h, a = details.get('home','').lower(), details.get('away','').lower()
         main, opp = main_team.lower(), opponent.lower()
         if (main == h and opp == a) or (main == a and opp == h):
-            return {"score": details.get('score', '?:?'), "ah_line": details.get('ahLine', '-'), "localia": 'H' if main == h else 'A', "home_team": details.get('home'), "away_team": details.get('away'), "match_id": details.get('matchIndex')}
+            return {
+                "score": details.get('score', '?:?'), "ah_line": details.get('ahLine', '-'), "localia": 'H' if main == h else 'A',
+                "home_team": details.get('home'), "away_team": details.get('away'), "match_id": details.get('matchIndex'),
+                "date": details.get('date', 'N/A'), "home_red": details.get('home_red'), "away_red": details.get('away_red')
+            }
     return None
 
 
