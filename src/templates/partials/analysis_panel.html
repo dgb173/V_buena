@@ -197,6 +197,17 @@
             {% endif %}
         </div>
         <div class="d-flex flex-wrap gap-2">
+            {% if odds.ah_linea and odds.ah_linea != '-' %}
+            <button class="btn btn-outline-info btn-sm pattern-search-trigger" data-handicap="{{ odds.ah_linea }}"
+                data-type="global" title="Buscar partidos históricos con el mismo hándicap">
+                <i class="fa-solid fa-globe me-1"></i>Global
+            </button>
+            <button class="btn btn-outline-info btn-sm pattern-search-trigger" data-handicap="{{ odds.ah_linea }}"
+                data-team="{{ data.home_name }}" data-type="team"
+                title="Buscar partidos históricos de {{ data.home_name }} con este hándicap">
+                <i class="fa-solid fa-shirt me-1"></i>{{ data.home_name }}
+            </button>
+            {% endif %}
             <button class="btn btn-outline-primary btn-sm analysis-preview-trigger"
                 data-preview-target="analysis-preview-container" data-match-id="{{ data.match_id or data.id }}">
                 <i class="fa-solid fa-eye me-2"></i>Vista previa rápida
