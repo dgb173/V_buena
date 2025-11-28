@@ -304,6 +304,69 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Backtesting Section (Global Pattern) -->
+                    {% if data.backtest_global and data.backtest_global.validez %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white py-1">
+                                    <h6 class="mb-0 text-center">🎯 Simulación Global (Patrón AH {{
+                                        data.main_match_odds.ah_linea }} + O/U {{ data.main_match_odds.goals_linea }})
+                                    </h6>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row justify-content-center">
+                                        <div class="col-md-8 text-center">
+                                            <p class="mb-2">
+                                                <strong>Probabilidad AH (Local):</strong>
+                                                <span
+                                                    class="{% if data.backtest_global.prob_ah > 50 %}text-success{% else %}text-danger{% endif %} fw-bold fs-5">
+                                                    {{ "%.1f"|format(data.backtest_global.prob_ah) }}%
+                                                </span>
+                                            </p>
+                                            <p class="mb-2">
+                                                <strong>Probabilidad O/U {{ data.main_match_odds.goals_linea
+                                                    }}:</strong>
+                                                <span class="text-success fw-bold">Over: {{
+                                                    "%.1f"|format(data.backtest_global.prob_over) }}%</span> |
+                                                <span class="text-danger fw-bold">Under: {{
+                                                    "%.1f"|format(data.backtest_global.prob_under) }}%</span>
+                                            </p>
+                                            <p class="text-muted small mb-1">
+                                                Basado en <strong>{{ data.backtest_global.stats.total_muestras
+                                                    }}</strong> partidos históricos con el mismo hándicap inicial.
+                                            </p>
+                                            {% if data.backtest_global.stats.match_ids %}
+                                            <div class="mt-2">
+                                                <button class="btn btn-outline-secondary btn-sm py-0 px-2" type="button"
+                                                    data-bs-toggle="collapse" data-bs-target="#collapseIds"
+                                                    aria-expanded="false" aria-controls="collapseIds"
+                                                    style="font-size: 0.7rem;">
+                                                    Ver IDs de Patrones
+                                                </button>
+                                                <div class="collapse mt-1" id="collapseIds">
+                                                    <div class="card card-body p-1 bg-light text-muted"
+                                                        style="font-size: 0.65rem; max-height: 100px; overflow-y: auto;">
+                                                        {{ data.backtest_global.stats.match_ids | join(', ') }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif data.backtest_global and not data.backtest_global.validez %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-light text-center py-1 mb-0 small text-muted border">
+                                {{ data.backtest_global.mensaje }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     <!-- Análisis de Mercado -->
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingSix">
@@ -336,8 +399,8 @@
                                         (Local)</h5>
                                 </div>
                                 <div class="card-body">
-                                    {% if data.last_home_match.details %}
-                                    {% set res = data.last_home_match.details %}
+                                    {% if data.last_home_match %}
+                                    {% set res = data.last_home_match %}
                                     <p>
                                         <span class="home-color">{{ res.home_team }}</span>
                                         {% if res.home_red %}<span class="badge bg-danger text-white ms-1"
@@ -350,10 +413,10 @@
                                     <p class="text-muted small mb-1">{{ res.date }}</p>
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap_line_raw) }}</span>
                                     </p>
-                                    {% if data.last_home_match.stats %}
+                                    {% if data.last_home_match.stats_rows %}
                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
-                                        {{ render_stat_rows(data.last_home_match.stats) }}
+                                        {{ render_stat_rows(data.last_home_match.stats_rows) }}
                                     </table>
                                     {% endif %}
                                     {% else %}<p class="text-muted">No se encontró último partido en casa.</p>{% endif
@@ -368,8 +431,8 @@
                                         (Fuera)</h5>
                                 </div>
                                 <div class="card-body">
-                                    {% if data.last_away_match.details %}
-                                    {% set res = data.last_away_match.details %}
+                                    {% if data.last_away_match %}
+                                    {% set res = data.last_away_match %}
                                     <p>
                                         <span class="home-color">{{ res.home_team }}</span>
                                         {% if res.home_red %}<span class="badge bg-danger text-white ms-1"
@@ -382,10 +445,10 @@
                                     <p class="text-muted small mb-1">{{ res.date }}</p>
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap_line_raw) }}</span>
                                     </p>
-                                    {% if data.last_away_match.stats %}
+                                    {% if data.last_away_match.stats_rows %}
                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
-                                        {{ render_stat_rows(data.last_away_match.stats) }}
+                                        {{ render_stat_rows(data.last_away_match.stats_rows) }}
                                     </table>
                                     {% endif %}
                                     {% else %}<p class="text-muted">No se encontró último partido fuera.</p>{% endif %}
@@ -398,8 +461,8 @@
                                     <h5 class="card-title">🧭 H2H Rivales (Col3)</h5>
                                 </div>
                                 <div class="card-body">
-                                    {% if data.h2h_col3.details and data.h2h_col3.details.status == 'found' %}
-                                    {% set res = data.h2h_col3.details %}
+                                    {% if data.h2h_col3 and data.h2h_col3.status == 'found' %}
+                                    {% set res = data.h2h_col3 %}
                                     <p>
                                         <span class="home-color">{{ res.h2h_home_team_name }}</span>
                                         {% if res.home_red %}<span class="badge bg-danger text-white ms-1"
@@ -411,13 +474,13 @@
                                     </p>
                                     <p class="text-muted small mb-1">{{ res.date }}</p>
                                     <p><b>AH:</b> <span class="ah-value">{{ format_ah(res.handicap) }}</span></p>
-                                    {% if data.h2h_col3.stats %}
+                                    {% if data.h2h_col3.stats_rows %}
                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas</h6>
                                     <table class="stat-table">
-                                        {{ render_stat_rows(data.h2h_col3.stats) }}
+                                        {{ render_stat_rows(data.h2h_col3.stats_rows) }}
                                     </table>
                                     {% endif %}
-                                    {% else %}<p class="text-muted">{{ (data.h2h_col3.details or {}).get('resultado',
+                                    {% else %}<p class="text-muted">{{ (data.h2h_col3 or {}).get('resultado',
                                         'No disponible.') }}</p>{% endif %}
                                 </div>
                             </div>
@@ -446,8 +509,8 @@
                                                             class="away-color">{{ data.away_name }}</span></h5>
                                                 </div>
                                                 <div class="card-body">
-                                                    {% if data.comp_L_vs_UV_A.details %}
-                                                    {% set res = data.comp_L_vs_UV_A.details %}
+                                                    {% if data.comparativas_indirectas.left %}
+                                                    {% set res = data.comparativas_indirectas.left %}
                                                     <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
                                                             }}</span> ({{ res.home_team }} vs {{ res.away_team }})
                                                     </p>
@@ -455,11 +518,13 @@
                                                             format_ah(res.ah_line) }}</span></p>
                                                     <p>🏟️ <b>Localía de '{{ data.home_name }}':</b> <span
                                                             class="data-highlight">{{ res.localia }}</span></p>
-                                                    {% if data.comp_L_vs_UV_A.stats %}
+                                                    {% if data.comparativas_indirectas.left.stats_rows %}
                                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">
                                                         Estadísticas</h6>
                                                     <table class="stat-table">
-                                                        {{ render_stat_rows(data.comp_L_vs_UV_A.stats) }}
+                                                        {{
+                                                        render_stat_rows(data.comparativas_indirectas.left.stats_rows)
+                                                        }}
                                                     </table>
                                                     {% endif %}
                                                     {% else %}<p class="text-muted">Comparativa no disponible.</p>{%
@@ -475,8 +540,8 @@
                                                             class="home-color">{{ data.home_name }}</span></h5>
                                                 </div>
                                                 <div class="card-body">
-                                                    {% if data.comp_V_vs_UL_H.details %}
-                                                    {% set res = data.comp_V_vs_UL_H.details %}
+                                                    {% if data.comparativas_indirectas.right %}
+                                                    {% set res = data.comparativas_indirectas.right %}
                                                     <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.score
                                                             }}</span> ({{ res.home_team }} vs {{ res.away_team }})
                                                     </p>
@@ -484,11 +549,13 @@
                                                             format_ah(res.ah_line) }}</span></p>
                                                     <p>🏟️ <b>Localía de '{{ data.away_name }}':</b> <span
                                                             class="data-highlight">{{ res.localia }}</span></p>
-                                                    {% if data.comp_V_vs_UL_H.stats %}
+                                                    {% if data.comparativas_indirectas.right.stats_rows %}
                                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">
                                                         Estadísticas</h6>
                                                     <table class="stat-table">
-                                                        {{ render_stat_rows(data.comp_V_vs_UL_H.stats) }}
+                                                        {{
+                                                        render_stat_rows(data.comparativas_indirectas.right.stats_rows)
+                                                        }}
                                                     </table>
                                                     {% endif %}
                                                     {% else %}<p class="text-muted">Comparativa no disponible.</p>{%
@@ -512,7 +579,7 @@
                             <div id="collapseFive" class="accordion-collapse collapse show"
                                 aria-labelledby="headingFive" data-bs-parent="#analysisAccordion">
                                 <div class="accordion-body">
-                                    <div class="row indirect-comparison-row g-2">
+                                    <div class="row indirect-comparison-row">
                                         <div class="col-6 mb-3">
                                             <div class="card h-100">
                                                 <div class="card-header">
@@ -521,8 +588,8 @@
                                                             }}</span> (En este estadio)</h5>
                                                 </div>
                                                 <div class="card-body">
-                                                    {% if data.h2h_stadium.details.res1 != '?:?' %}
-                                                    {% set res = data.h2h_stadium.details %}
+                                                    {% if data.h2h_stadium.res1 != '?:?' %}
+                                                    {% set res = data.h2h_stadium %}
                                                     <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.res1 }}</span>
                                                         {% if res.home_red %}<span
                                                             class="badge bg-danger text-white ms-1"
@@ -535,11 +602,11 @@
                                                     </p>
                                                     <p class="text-muted small mb-1">{{ res.date }}</p>
                                                     <p>⚖️ <b>AH:</b> <span class="ah-value">{{ res.ah1 }}</span></p>
-                                                    {% if data.h2h_stadium.stats %}
+                                                    {% if data.h2h_stadium.stats_rows %}
                                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas
                                                     </h6>
                                                     <table class="stat-table">
-                                                        {{ render_stat_rows(data.h2h_stadium.stats) }}
+                                                        {{ render_stat_rows(data.h2h_stadium.stats_rows) }}
                                                     </table>
                                                     {% endif %}
                                                     {% else %}<p class="text-muted text-center">No se encontró H2H
@@ -555,8 +622,8 @@
                                                             }}</span> (General)</h5>
                                                 </div>
                                                 <div class="card-body">
-                                                    {% if data.h2h_general.details.res6 != '?:?' %}
-                                                    {% set res = data.h2h_general.details %}
+                                                    {% if data.h2h_general.res6 != '?:?' %}
+                                                    {% set res = data.h2h_general %}
                                                     <p>📊 <b>Res:</b> <span class="data-highlight">{{ res.res6 }}</span>
                                                         ({{ res.h2h_gen_home }} vs {{ res.h2h_gen_away }})
                                                         {% if res.home_red %}<span
@@ -570,11 +637,11 @@
                                                     </p>
                                                     <p class="text-muted small mb-1">{{ res.date }}</p>
                                                     <p>⚖️ <b>AH:</b> <span class="ah-value">{{ res.ah6 }}</span></p>
-                                                    {% if data.h2h_general.stats %}
+                                                    {% if data.h2h_general.stats_rows %}
                                                     <h6 class="mt-3 text-muted" style="font-size: 0.8em;">Estadísticas
                                                     </h6>
                                                     <table class="stat-table">
-                                                        {{ render_stat_rows(data.h2h_general.stats) }}
+                                                        {{ render_stat_rows(data.h2h_general.stats_rows) }}
                                                     </table>
                                                     {% endif %}
                                                     {% else %}<p class="text-muted text-center">No se encontró H2H

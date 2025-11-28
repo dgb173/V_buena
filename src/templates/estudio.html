@@ -272,7 +272,15 @@
             <div class="sidebar-card">
                 <div class="sidebar-card-header">
                     <h6 class="mb-0">Partidos terminados</h6>
-                    <span class="badge bg-secondary">{{ finished_matches|length }}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary">{{ finished_matches|length }}</span>
+                        <a href="/todos_resultados" class="btn btn-xs btn-outline-secondary py-0"
+                            style="font-size: 0.7rem;" title="Ver todos">Ver todos</a>
+                        <button id="btn-cache-all" class="btn btn-xs btn-outline-success py-0"
+                            style="font-size: 0.7rem;" title="Cachear todos en CSV (Background)">
+                            <i class="fa-solid fa-database"></i> Cachear
+                        </button>
+                    </div>
                 </div>
                 <div class="sidebar-table-wrapper">
                     <table class="table table-sm align-middle sidebar-table">
@@ -466,10 +474,92 @@
 
             sidebarRows.forEach(row => {
                 row.addEventListener('click', () => {
-                    loadMatch(row.dataset.matchId);
-                    if (window.innerWidth < 992) closeSidebar();
+                    const matchId = row.dataset.matchId;
+                    if (matchId) {
+                        window.location.href = `/estudio?id=${matchId}`;
+                    }
                 });
             });
+
+            // Handler para botón de Cachear Todos
+            const btnCacheAll = document.getElementById('btn-cache-all');
+            if (btnCacheAll) {
+                btnCacheAll.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (!confirm('¿Estás seguro de iniciar el cacheo masivo de partidos finalizados? Esto se ejecutará en segundo plano.')) {
+                        return;
+                    }
+
+                    // Deshabilitar botón temporalmente
+                    const originalText = this.innerHTML;
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+
+                    fetch('/api/cache_all_finished_background', {
+                        method: 'POST'
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert('Proceso iniciado: ' + data.message);
+                            } else {
+                                alert('Error al iniciar: ' + (data.error || 'Desconocido'));
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Error de red al intentar iniciar el cacheo.');
+                        })
+                        .finally(() => {
+                            // Restaurar botón
+                            this.disabled = false;
+                            this.innerHTML = originalText;
+                        });
+                });
+            }
+
+            // Handler para Cacheo por Rangos
+            const btnRangeCache = document.getElementById('btn-start-range-cache');
+            if (btnRangeCache) {
+                btnRangeCache.addEventListener('click', function () {
+                    const input = document.getElementById('rangeInput');
+                    const ranges = input.value.trim();
+
+                    if (!ranges) {
+                        alert('Por favor ingresa al menos un rango o ID.');
+                        return;
+                    }
+
+                    if (!confirm(`¿Iniciar cacheo para: "${ranges}"? Esto correrá en segundo plano.`)) return;
+
+                    const originalText = this.innerHTML;
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+
+                    fetch('/api/cache_ranges_background', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ranges: ranges })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert('Proceso iniciado. Revisa la terminal para ver el progreso.');
+                                input.value = ''; // Limpiar
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Error de red.');
+                        })
+                        .finally(() => {
+                            this.disabled = false;
+                            this.innerHTML = originalText;
+                        });
+                });
+            }
 
             const formatCoverStatus = (status) => {
                 if (!status) return '';

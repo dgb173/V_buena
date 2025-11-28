@@ -1154,6 +1154,42 @@ def extract_final_score_of(soup):
     except Exception: pass
     return '?:?', '?-?'
 
+def extract_match_time_of(soup):
+    """Extrae la hora del partido del HTML."""
+    if not soup: return "N/A"
+    try:
+        # Buscar en el script matchInfo primero
+        # Usamos una búsqueda más amplia para el script
+        scripts = soup.find_all("script")
+        for script in scripts:
+            if script.string and "var _matchInfo" in script.string:
+                match = re.search(r"mTime:\s*'([^']*)'", script.string)
+                if match:
+                    # Formato suele ser YYYY-MM-DD HH:MM:SS
+                    full_time = match.group(1)
+                    if ' ' in full_time:
+                        return full_time.split(' ')[1][:5] # HH:MM
+                    return full_time
+                break
+        
+        # Fallback al HTML
+        time_div = soup.find("div", class_="row", id="match_time")
+        if time_div:
+            return time_div.get_text(strip=True)
+            
+        # Fallback a un span con data-t (común en listas pero a veces en header)
+        time_span = soup.find("span", attrs={"name": "timeData"})
+        if time_span and time_span.get("data-t"):
+             full_time = time_span.get("data-t")
+             if ' ' in full_time:
+                return full_time.split(' ')[1][:5]
+             return full_time
+
+    except Exception:
+        pass
+    return "N/A"
+
+
 def extract_h2h_data_of(soup, home_name, away_name, league_id=None, odds_map=None):
     results = {'ah1': '-', 'res1': '?:?', 'res1_raw': '?-?', 'match1_id': None, 'ah6': '-', 'res6': '?:?', 'res6_raw': '?-?', 'match6_id': None, 'h2h_gen_home': "Local (H2H Gen)", 'h2h_gen_away': "Visitante (H2H Gen)"}
     if not soup or not home_name or not away_name or not (h2h_table := soup.find("table", id="table_v3")): return results
@@ -1203,6 +1239,34 @@ def _load_main_match_soup(main_match_id: str):
     response.raise_for_status()
     return BeautifulSoup(response.text, "lxml")
 
+from pathlib import Path
+from modules.backtesting import BettingSimulator
+
+def load_cached_finished_matches():
+    """Carga los partidos finalizados desde data.json."""
+    # Intentar localizar data.json en directorios padres
+    candidates = [
+        Path(__file__).resolve().parent.parent.parent / 'data.json', # src/modules/../.. -> root
+        Path("C:/Users/Usuario/Desktop/V_buena/data.json") # Absolute fallback
+    ]
+    
+    data_file = None
+    for c in candidates:
+        if c.exists():
+            data_file = c
+            break
+            
+    if not data_file:
+        return []
+
+    try:
+        with open(data_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get('finished_matches', [])
+    except Exception as e:
+        print(f"Error loading data.json: {e}")
+        return []
+
 def analizar_partido_completo(match_id: str, force_refresh: bool = False):
     main_match_id = "".join(filter(str.isdigit, str(match_id)))
     if not main_match_id:
@@ -1239,9 +1303,112 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
         comp_V_vs_UL_H = extract_comparative_match_of(soup_completo, "table_v2", away_name, (last_home_match or {}).get('away_team'), league_id, False, odds_map)
         main_match_odds_data = extract_bet365_initial_odds_of(soup_completo, main_match_id)
         final_score, _ = extract_final_score_of(soup_completo)
+        match_time = extract_match_time_of(soup_completo)
         details_h2h_col3 = get_h2h_details_for_original_logic_of(
             key_match_id_rival_a, rival_a_id, rival_b_id, rival_a_name, rival_b_name
         )
+        # --- Determinar Rivales Intencionados (para CSV aunque no haya match) ---
+        rival_name_for_home_to_find = "N/A"
+        if last_away_match:
+            # El rival del Home Team para la comparativa es el equipo contra el que jugó el Away Team recientemente
+            lat_home = last_away_match.get('home_team', '')
+            lat_away = last_away_match.get('away_team', '')
+            # Asumimos que away_name jugó ahí. Si away_name es home, rival es away.
+            if away_name.lower() in lat_home.lower(): rival_name_for_home_to_find = lat_away
+            else: rival_name_for_home_to_find = lat_home
+
+        rival_name_for_away_to_find = "N/A"
+        if last_home_match:
+            lhm_home = last_home_match.get('home_team', '')
+            lhm_away = last_home_match.get('away_team', '')
+            if home_name.lower() in lhm_home.lower(): rival_name_for_away_to_find = lhm_away
+            else: rival_name_for_away_to_find = lhm_home
+        # ---------------------------------------------------------------------
+
+        # --- Determinar Rivales para Comparativas Indirectas (si existen) ---
+        if comp_L_vs_UV_A:
+            # Home Team vs Rival. Find Rival.
+            h_team = comp_L_vs_UV_A.get('home_team', '')
+            a_team = comp_L_vs_UV_A.get('away_team', '')
+            # Simple heuristic: The one that is NOT the home_name is the rival
+            # Normalize for comparison
+            hn_norm = home_name.lower().strip()
+            if h_team.lower().strip() == hn_norm:
+                comp_L_vs_UV_A['rival_name'] = a_team
+            elif a_team.lower().strip() == hn_norm:
+                comp_L_vs_UV_A['rival_name'] = h_team
+            else:
+                # Fallback: try partial match
+                if hn_norm in h_team.lower(): comp_L_vs_UV_A['rival_name'] = a_team
+                elif hn_norm in a_team.lower(): comp_L_vs_UV_A['rival_name'] = h_team
+                else: comp_L_vs_UV_A['rival_name'] = "Rival Desconocido"
+
+        if comp_V_vs_UL_H:
+            # Away Team vs Rival.
+            h_team = comp_V_vs_UL_H.get('home_team', '')
+            a_team = comp_V_vs_UL_H.get('away_team', '')
+            an_norm = away_name.lower().strip()
+            if h_team.lower().strip() == an_norm:
+                comp_V_vs_UL_H['rival_name'] = a_team
+            elif a_team.lower().strip() == an_norm:
+                comp_V_vs_UL_H['rival_name'] = h_team
+            else:
+                if an_norm in h_team.lower(): comp_V_vs_UL_H['rival_name'] = a_team
+                elif an_norm in a_team.lower(): comp_V_vs_UL_H['rival_name'] = h_team
+                else: comp_V_vs_UL_H['rival_name'] = "Rival Desconocido"
+        # -----------------------------------------------------
+
+
+        # --- GLOBAL BACKTESTING LOGIC ---
+        simulator = BettingSimulator()
+        
+        # Parse current lines
+        ah_actual_str = format_ah_as_decimal_string_of(main_match_odds_data.get('ah_linea_raw', '-'))
+        ah_actual_num = parse_ah_to_number_of(ah_actual_str)
+        
+        goles_actual_str = format_ah_as_decimal_string_of(main_match_odds_data.get('goals_linea_raw', '-'))
+        goles_actual_num = parse_ah_to_number_of(goles_actual_str)
+        
+        backtest_global = {"validez": False, "mensaje": "No hay línea AH/OU actual para simular."}
+
+        if ah_actual_num is not None and goles_actual_num is not None:
+            # 1. Cargar clones globales
+            all_finished = load_cached_finished_matches()
+            global_clones = []
+            
+            # Normalizar AH y OU actual para comparación
+            target_ah_str = ah_actual_str
+            target_ou_str = goles_actual_str
+            
+            for m in all_finished:
+                # Normalizar handicap y goal_line del partido cacheado
+                m_ah_raw = m.get('handicap')
+                m_ou_raw = m.get('goal_line')
+                
+                if not m_ah_raw or not m_ou_raw: continue
+                
+                # Usamos la misma función de formateo para asegurar consistencia
+                m_ah_str = format_ah_as_decimal_string_of(m_ah_raw)
+                m_ou_str = format_ah_as_decimal_string_of(m_ou_raw)
+                
+                # CRITERIO DE PATRÓN ESTRICTO: AH + O/U deben coincidir
+                if m_ah_str == target_ah_str and m_ou_str == target_ou_str:
+                    # Es un clon!
+                    clone_data = {
+                        'score_raw': m.get('score'),
+                        'match_id': m.get('id')
+                    }
+                    global_clones.append(clone_data)
+            
+            # 2. Simular
+            if global_clones:
+                backtest_global = simulator.simular_escenario_actual(
+                    global_clones, ah_actual_num, goles_actual_num
+                )
+            else:
+                backtest_global = {"validez": False, "mensaje": f"No se encontraron clones con Patrón AH {target_ah_str} + O/U {target_ou_str}."}
+        # -------------------------
+
     except Exception as exc:
         return {"error": f"Error durante el análisis: {exc}"}
 
@@ -1268,6 +1435,7 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
         "away_name": away_name,
         "league_name": league_name,
         "final_score": final_score,
+        "time": match_time,
         "home_standings": home_standings,
         "away_standings": away_standings,
         "home_ou_stats": home_ou_stats,
@@ -1278,13 +1446,33 @@ def analizar_partido_completo(match_id: str, force_refresh: bool = False):
         },
         "market_analysis_html": market_analysis_html,
         "historical_matches_html": historical_matches_html,
-        "last_home_match": {"details": last_home_match, "stats": last_home_match_stats},
-        "last_away_match": {"details": last_away_match, "stats": last_away_match_stats},
-        "h2h_col3": {"details": details_h2h_col3, "stats": h2h_col3_stats},
-        "comp_L_vs_UV_A": {"details": comp_L_vs_UV_A, "stats": comp_L_vs_UV_A_stats},
-        "comp_V_vs_UL_H": {"details": comp_V_vs_UL_H, "stats": comp_V_vs_UL_H_stats},
-        "h2h_stadium": {"details": h2h_data, "stats": h2h_stadium_stats},
-        "h2h_general": {"details": h2h_data, "stats": h2h_general_stats},
+        "last_home_match": {**last_home_match, "stats_rows": last_home_match_stats} if last_home_match else None,
+        "last_away_match": {**last_away_match, "stats_rows": last_away_match_stats} if last_away_match else None,
+        "h2h_col3": {
+            **details_h2h_col3,
+            "stats_rows": h2h_col3_stats
+        } if details_h2h_col3 else None,
+        
+        "comparativas_indirectas": {
+            "left": {
+                **(comp_L_vs_UV_A if comp_L_vs_UV_A else {}),
+                "stats_rows": comp_L_vs_UV_A_stats if comp_L_vs_UV_A else None,
+                "title_home_name": home_name,
+                "title_away_name": away_name,
+                "rival_name": comp_L_vs_UV_A.get('rival_name') if comp_L_vs_UV_A else rival_name_for_home_to_find
+            },
+            "right": {
+                **(comp_V_vs_UL_H if comp_V_vs_UL_H else {}),
+                "stats_rows": comp_V_vs_UL_H_stats if comp_V_vs_UL_H else None,
+                "title_home_name": home_name,
+                "title_away_name": away_name,
+                "rival_name": comp_V_vs_UL_H.get('rival_name') if comp_V_vs_UL_H else rival_name_for_away_to_find
+            }
+        },
+
+        "h2h_stadium": {**h2h_data, "stats_rows": h2h_stadium_stats},
+        "h2h_general": {**h2h_data, "stats_rows": h2h_general_stats},
+        "backtest_global": backtest_global,
         "execution_time_seconds": round(time.time() - start_time, 2),
     }
 

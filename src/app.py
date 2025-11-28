@@ -20,6 +20,8 @@ from pathlib import Path
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import csv
+import os
 
 # ¡Importante! Importa tu nuevo módulo de scraping
 from modules.estudio_scraper import (
@@ -32,6 +34,75 @@ from modules.estudio_scraper import (
 from flask import jsonify # Asegúrate de que jsonify está importado
 
 app = Flask(__name__)
+
+# --- CONFIGURACIÓN CSV ---
+STUDIED_MATCHES_DIR = Path(__file__).resolve().parent.parent / 'studied_matches'
+STUDIED_MATCHES_CSV = STUDIED_MATCHES_DIR / 'history.csv'
+
+def save_match_to_csv(match_data):
+    """Guarda los datos básicos del partido en un CSV."""
+    try:
+        STUDIED_MATCHES_DIR.mkdir(parents=True, exist_ok=True)
+        
+        file_exists = STUDIED_MATCHES_CSV.exists()
+        
+        # Definir columnas
+        fieldnames = [
+            'timestamp', 'match_id', 'home_team', 'away_team', 
+            'score', 'time', 'competition', 'ah_line', 'ou_line',
+            'last_home_score', 'last_home_ah',
+            'last_away_score', 'last_away_ah',
+            'comp_home_rival', 'comp_home_score', 'comp_home_ah', 'comp_home_localia',
+            'comp_away_rival', 'comp_away_score', 'comp_away_ah', 'comp_away_localia'
+        ]
+        
+        # Helper to safely get nested dict values
+        def get_nested(d, *keys):
+            for k in keys:
+                if not isinstance(d, dict): return ''
+                d = d.get(k, {})
+            return d if isinstance(d, str) or isinstance(d, (int, float)) else ''
+
+        row = {
+            'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'match_id': match_data.get('match_id', ''),
+            'home_team': match_data.get('home_name', ''),
+            'away_team': match_data.get('away_name', ''),
+            'score': match_data.get('final_score', ''),
+            'time': match_data.get('time', ''),
+            'competition': match_data.get('league_name', ''),
+            'ah_line': get_nested(match_data, 'main_match_odds', 'ah_linea'),
+            'ou_line': get_nested(match_data, 'main_match_odds', 'goals_linea'),
+            
+            # Historial Inmediato
+            'last_home_score': get_nested(match_data, 'last_home_match', 'score'),
+            'last_home_ah': get_nested(match_data, 'last_home_match', 'handicap_line_raw'),
+            'last_away_score': get_nested(match_data, 'last_away_match', 'score'),
+            'last_away_ah': get_nested(match_data, 'last_away_match', 'handicap_line_raw'),
+            
+            # Comparativas Indirectas (H2H Rivales Col3)
+            # Nota: Ahora están dentro de 'comparativas_indirectas' -> 'left' / 'right'
+            'comp_home_rival': get_nested(match_data, 'comparativas_indirectas', 'left', 'rival_name'),
+            'comp_home_score': get_nested(match_data, 'comparativas_indirectas', 'left', 'score'),
+            'comp_home_ah': get_nested(match_data, 'comparativas_indirectas', 'left', 'ah_line'),
+            'comp_home_localia': get_nested(match_data, 'comparativas_indirectas', 'left', 'localia'),
+            
+            'comp_away_rival': get_nested(match_data, 'comparativas_indirectas', 'right', 'rival_name'),
+            'comp_away_score': get_nested(match_data, 'comparativas_indirectas', 'right', 'score'),
+            'comp_away_ah': get_nested(match_data, 'comparativas_indirectas', 'right', 'ah_line'),
+            'comp_away_localia': get_nested(match_data, 'comparativas_indirectas', 'right', 'localia'),
+        }
+
+        with open(STUDIED_MATCHES_CSV, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+            
+        print(f"Partido {match_data.get('match_id')} guardado en CSV.")
+    except Exception as e:
+        print(f"Error al guardar en CSV: {e}")
+
 
 # --- Mantén tu lógica para la página principal ---
 URL_NOWGOAL = "https://live20.nowgoal25.com/"
@@ -657,6 +728,12 @@ def proximos():
     print("Recibida petición para /proximos")
     return _render_matches_dashboard('upcoming', 'Próximos Partidos')
 
+@app.route('/todos_resultados')
+def todos_resultados():
+    """Muestra una vista dedicada con todos los partidos finalizados."""
+    return render_template('finished_matches.html')
+
+
 @app.route('/api/matches')
 def api_matches():
     try:
@@ -678,6 +755,135 @@ def api_finished_matches():
         return jsonify({'matches': matches})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/all_finished_matches')
+def api_all_finished_matches():
+    """Devuelve todos los partidos finalizados disponibles (o un límite alto)."""
+    try:
+        # Reutilizamos la lógica existente pero con un límite alto
+        matches = asyncio.run(get_main_page_finished_matches_async(limit=1000, offset=0))
+        return jsonify({'matches': matches})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def process_all_finished_matches_background():
+    """Procesa todos los partidos finalizados en segundo plano."""
+    print("Iniciando proceso de cacheo en segundo plano...")
+    try:
+        # 1. Obtener todos los partidos finalizados
+        # Usamos un límite alto para traer todos
+        matches = asyncio.run(get_main_page_finished_matches_async(limit=2000, offset=0))
+        print(f"Se encontraron {len(matches)} partidos finalizados para procesar.")
+        
+        count = 0
+        for match in matches:
+            match_id = match.get('id')
+            if not match_id: continue
+            
+            print(f"Procesando partido {match_id} ({count + 1}/{len(matches)})...")
+            try:
+                # 2. Analizar partido (esto ya extrae datos y hace backtesting)
+                # Nota: analizar_partido_completo es síncrono, así que está bien aquí.
+                match_data = analizar_partido_completo(match_id)
+                
+                # 3. Guardar en CSV
+                save_match_to_csv(match_data)
+                
+                # Pequeña pausa para no saturar
+                time.sleep(1) 
+                count += 1
+            except Exception as e:
+                print(f"Error procesando partido {match_id}: {e}")
+                
+        print(f"Proceso de cacheo finalizado. {count} partidos procesados.")
+        
+    except Exception as e:
+        print(f"Error fatal en proceso de background: {e}")
+
+@app.route('/api/cache_all_finished_background', methods=['POST'])
+def api_cache_all_finished_background():
+    """Endpoint para iniciar el cacheo de todos los partidos finalizados."""
+    try:
+        # Iniciar hilo en segundo plano
+        thread = threading.Thread(target=process_all_finished_matches_background)
+        thread.daemon = True # Para que no bloquee el cierre del server
+        thread.start()
+        
+        return jsonify({'status': 'success', 'message': 'Proceso de cacheo iniciado en segundo plano.'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+    matches = search_history_by_handicap(handicap)
+    return jsonify({'matches': matches})
+
+def process_id_ranges_background(ranges_str):
+    """Procesa rangos de IDs en segundo plano."""
+    print(f"Iniciando cacheo por rangos: {ranges_str}")
+    try:
+        # Parsear rangos
+        ids_to_process = []
+        parts = [p.strip() for p in ranges_str.split(',') if p.strip()]
+        for part in parts:
+            if '-' in part:
+                try:
+                    start, end = part.split('-')
+                    start, end = int(start), int(end)
+                    if start > end: start, end = end, start
+                    # Limitar rango para evitar locuras
+                    if (end - start) > 1000:
+                        print(f"Rango demasiado grande ignorado: {part}")
+                        continue
+                    ids_to_process.extend(range(start, end + 1))
+                except ValueError:
+                    print(f"Rango invalido ignorado: {part}")
+            else:
+                try:
+                    ids_to_process.append(int(part))
+                except ValueError:
+                    print(f"ID invalido ignorado: {part}")
+        
+        # Eliminar duplicados y ordenar
+        ids_to_process = sorted(list(set(ids_to_process)))
+        print(f"Total IDs a procesar: {len(ids_to_process)}")
+        
+        count = 0
+        for match_id in ids_to_process:
+            print(f"Procesando ID {match_id} ({count + 1}/{len(ids_to_process)})...")
+            try:
+                # Verificar si ya existe en CSV para no repetir (opcional, pero recomendado)
+                # Por ahora lo sobrescribimos/añadimos
+                
+                match_data = analizar_partido_completo(str(match_id))
+                if match_data:
+                    save_match_to_csv(match_data)
+                    count += 1
+                else:
+                    print(f"No se obtuvieron datos para {match_id}")
+                
+                time.sleep(1) # Pausa respetuosa
+            except Exception as e:
+                print(f"Error procesando {match_id}: {e}")
+        
+        print(f"Proceso de rangos finalizado. {count} partidos guardados.")
+
+    except Exception as e:
+        print(f"Error fatal en proceso de rangos: {e}")
+
+@app.route('/api/cache_ranges_background', methods=['POST'])
+def api_cache_ranges_background():
+    """Endpoint para iniciar cacheo por rangos."""
+    data = request.json
+    ranges = data.get('ranges')
+    if not ranges:
+        return jsonify({'error': 'Falta el parametro ranges'}), 400
+        
+    thread = threading.Thread(target=process_id_ranges_background, args=(ranges,))
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({'status': 'success', 'message': 'Proceso de rangos iniciado en segundo plano.'})
 
 
 @app.route('/api/preview_basico/<string:match_id>')
@@ -784,6 +990,12 @@ def api_estudio_panel(match_id):
             return jsonify({'error': error_message}), 500
 
         datos_partido['match_id'] = match_id
+        
+        # --- GUARDAR EN CSV ---
+        # Guardamos en CSV cada vez que se analiza exitosamente
+        save_match_to_csv(datos_partido)
+        # ----------------------
+
         html = render_template(
             'partials/analysis_panel.html',
             data=datos_partido,
